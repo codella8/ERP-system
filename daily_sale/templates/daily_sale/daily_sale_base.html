@@ -29,78 +29,78 @@
 
 <body class="d-flex flex-column min-vh-100">
 
-  <nav class="navbar navbar-expand-lg navbar-dark modern-nav">
-    <div class="container-fluid">
-      <div class="brand-container">
-        <span class="brand-text">Daily<span class="brand-accent">Sale</span></span>
-      </div>
+  <div class="dashboard-layout">
+    <!-- Top Navbar -->
+    <nav class="top-navbar">
+      <div class="navbar-container">
+        <div class="navbar-logo">
+          <div class="logo-text">
+            <h2>ALMUQBIL</h2>
+          </div>
+        </div>
 
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
-        <span class="navbar-toggler-icon"></span>
-      </button>
+        <!-- Mobile Menu Button -->
+        <button class="mobile-menu-btn" id="mobileMenuBtn">
+          <i class="fas fa-bars"></i>
+        </button>
 
-      <div class="collapse navbar-collapse" id="navbarMain">
-        <ul class="navbar-nav me-auto">
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'daily_sale:dashboard' %}active{% endif %}"
-              href="{% url 'daily_sale:dashboard' %}">
-              <i class="bi bi-house me-2"></i>
-              Home 
+        <div class="navbar-menu" id="navbarMenu">
+          <ul class="menu-list">
+            <li class="menu-item">
+            <a href="{% url 'accounts:home' %}" class="menu-link" data-app="sales">
+              <i class="menu-icon fas fa-shopping-cart"></i>
+              <span class="menu-label">Home</span>
             </a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'transaction_create' %}active{% endif %}"
-              href="{% url 'daily_sale:transaction_create' %}">
-              <i class="bi bi-plus-circle me-2"></i>
-              New Transaction
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'transaction_list' %}active{% endif %}"
-              href="{% url 'daily_sale:transaction_list' %}">
-              <i class="bi bi-list-check me-2"></i>
-              Transactions
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'daily_summary' %}active{% endif %}"
-              href="{% url 'daily_sale:daily_summary' %}">
-              <i class="bi bi-file-text me-2"></i>
-              Daily Summary
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'outstanding' %}active{% endif %}"
-              href="{% url 'daily_sale:outstanding' %}">
-              <i class="bi bi-exclamation-triangle me-2"></i>
-              Old Transactions
-            </a>
-          </li>
+            <li class="menu-item">
+              <a href="{% url 'daily_sale:transaction_list' %}" class="menu-link active" data-app="sales">
+                <i class="menu-icon fas fa-shopping-cart"></i>
+                <span class="menu-label">Daily Sales</span>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="{% url 'containers:list' %}" class="menu-link" data-app="containers">
+                <i class="menu-icon fas fa-shipping-fast"></i>
+                <span class="menu-label">Containers</span>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="{% url 'employee:person_list' %}" class="menu-link" data-app="employees">
+                <i class="menu-icon fas fa-users"></i>
+                <span class="menu-label">Employees</span>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="{% url 'expenses:expense_list' %}" class="menu-link" data-app="expenses">
+                <i class="menu-icon fas fa-money-bill-wave"></i>
+                <span class="menu-label">Expenses</span>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="#" class="menu-link" data-app="reports">
+                <i class="menu-icon fas fa-chart-pie"></i>
+                <span class="menu-label">Reports</span>
+              </a>
+            </li>
+          </ul>
+        </div>
 
-          <li class="nav-item">
-            <a class="nav-link {% if request.resolver_match.url_name == 'cleared_transactions' %}active{% endif %}"
-              href="{% url 'daily_sale:cleared_transactions' %}">
-              <i class="bi bi-speedometer2 me-2"></i>
-              Cleared Cashes
-            </a>
-          </li>
-        </ul>
-
-        <div class="navbar-right">
-          <div class="dropdown user-dropdown">
-            <button class="btn btn-user dropdown-toggle" type="button" data-bs-toggle="dropdown">
-              <i class="bi bi-person-circle me-2"></i>
+        <div class="navbar-user">
+          <div class="user-profile">
+            <i class="fas fa-user-circle"></i>
+            <span>
               {% if user.get_full_name %}
               {{ user.get_full_name }}
               {% else %}
               {{ user.username }}
               {% endif %}
-            </button>
+            </span>
+            <i class="fas fa-chevron-down"></i>
           </div>
         </div>
       </div>
-    </div>
-  </nav>
+    </nav>
+  </div>
 
   <main class="container-fluid modern-main">
     {% if messages %}
@@ -137,7 +137,7 @@
 
     $(document).ready(function () {
       updateDateTime();
-      setInterval(updateDateTime, 60000); 
+      setInterval(updateDateTime, 60000);
 
       $('.select2').select2({
         theme: 'bootstrap-5',
@@ -146,8 +146,122 @@
 
       $('.alert').addClass('animate__animated animate__fadeIn');
     });
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const menuLinks = document.querySelectorAll('.menu-link');
+      const navbarMenu = document.getElementById('navbarMenu');
+      const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+
+      // Mobile menu toggle
+      if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', function () {
+          navbarMenu.classList.toggle('active');
+          this.classList.toggle('active');
+        });
+      }
+
+      // Active menu link
+      menuLinks.forEach(link => {
+        link.addEventListener('click', function (e) {
+          menuLinks.forEach(l => l.classList.remove('active'));
+          this.classList.add('active');
+
+          // Close mobile menu after click
+          if (window.innerWidth < 768) {
+            navbarMenu.classList.remove('active');
+            mobileMenuBtn.classList.remove('active');
+          }
+        });
+      });
+
+      // Close mobile menu when clicking outside
+      document.addEventListener('click', function (e) {
+        if (window.innerWidth < 768) {
+          if (!navbarMenu.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+            navbarMenu.classList.remove('active');
+            mobileMenuBtn.classList.remove('active');
+          }
+        }
+      });
+
+      // باقی کدهای شما
+      const quickViewButtons = document.querySelectorAll('.quick-view-btn');
+      quickViewButtons.forEach(button => {
+        button.addEventListener('click', function (e) {
+          e.stopPropagation();
+          const carCard = this.closest('.car-card');
+          if (carCard) {
+            const carTitle = carCard.querySelector('.car-title')?.textContent || 'Car';
+            alert(`Quick View: ${carTitle}\nFull details available in the Premium Cars section.`);
+          }
+        });
+      });
+
+      const carCards = document.querySelectorAll('.car-card');
+      carCards.forEach(card => {
+        card.addEventListener('click', function (e) {
+          if (!e.target.closest('.quick-view-btn') && !e.target.closest('.btn')) {
+            const carTitle = this.querySelector('.car-title')?.textContent || 'Car';
+            alert(`Selected: ${carTitle}\nRedirecting to details page...`);
+          }
+        });
+      });
+
+      const heroButton = document.querySelector('.btn-white');
+      if (heroButton) {
+        heroButton.addEventListener('click', function () {
+          const carsLink = document.querySelector('.menu-link[data-app="cars"]');
+          if (carsLink) {
+            carsLink.click();
+          }
+        });
+      }
+
+      // Animate elements on scroll
+      const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      };
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-in');
+          }
+        });
+      }, observerOptions);
+
+      document.querySelectorAll('.stat-card, .car-card, .action-card').forEach(el => {
+        observer.observe(el);
+      });
+
+      // Add CSS for scroll animation
+      const style = document.createElement('style');
+      style.textContent = `
+            @keyframes slideIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            
+            .animate-in {
+                animation: slideIn 0.6s ease forwards;
+            }
+            
+            .hero-banner {
+                animation: slideIn 0.8s ease;
+            }
+        `;
+      document.head.appendChild(style);
+    });
   </script>
 
   {% block extra_js %}{% endblock %}
 </body>
+
 </html>

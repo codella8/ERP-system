@@ -1,0 +1,215 @@
+{% extends 'container/container_base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Almuqbil | Daily Container Report{% endblock %}
+{% block content %}
+<div class="report-wrapper">
+    <div class="excel-menu">
+            <a href="{% url 'containers:list' %}" class="menu-item">
+                <i class="fas fa-list"></i> All Transactions
+            </a>
+            <a href="{% url 'containers:inventory_list' %}" class="menu-item">
+                <i class="fas fa-chart-bar"></i>Inventory
+            </a>
+            
+        </div>
+    <div class="report-box">
+        <div class="page-header">
+            <h1 class="page-title">
+                📊 Daily Container Report
+                <small style="font-size: 14px; color: var(--gray-600); margin-left: 10px;">
+                    {{ report_date|date:"l, F j, Y" }}
+                </small>
+            </h1>
+            
+            <div class="date-navigation">
+                <a href="?date={{ prev_date }}" class="date-nav-btn">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </a>
+                
+                <form method="GET" action="" style="display: inline;">
+                    <input type="date" name="date" class="date-picker" value="{{ report_date|date:'Y-m-d' }}" 
+                           onchange="this.form.submit()">
+                </form>
+                
+                <a href="?date={{ today }}" class="today-btn">
+                    <i class="fas fa-calendar-day"></i> Today
+                </a>
+                
+                <a href="?date={{ next_date }}" class="date-nav-btn">
+                    Next <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-dollar-sign"></i></div>
+                <div class="summary-content">
+                    <h3>AED {{ total_sales|floatformat:0|intcomma }}</h3>
+                    <p>Total Sales</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-shopping-cart"></i></div>
+                <div class="summary-content">
+                    <h3>{{ total_transactions }}</h3>
+                    <p>Transactions</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-cubes"></i></div>
+                <div class="summary-content">
+                    <h3>{{ total_items_sold|intcomma }}</h3>
+                    <p>Items Sold</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-times-circle"></i></div>
+                <div class="summary-content">
+                    <h3>{{ not_sold_count }}</h3>
+                    <p>Not Sold Items</p>
+                </div>
+            </div>
+        </div>
+        <div class="report-toolbar">
+            <div class="search-wrapper">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" id="searchInput" 
+                       placeholder="Search by code..." value="{{ search_query }}">
+            </div>
+            <button class="btn-refresh" onclick="applySearch()">
+                <i class="fas fa-search"></i> Search
+            </button>
+            <button class="btn-refresh" onclick="location.reload()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <button class="btn-export" onclick="exportToExcel()">
+                <i class="fas fa-file-excel"></i> Export to Excel
+            </button>
+        </div>
+        <div class="table-wrapper">
+            <div class="table-scroll">
+                <table class="report-table" id="reportTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Code</th>
+                            <th>Total (AED)</th>
+                            <th>Not Sold</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in daily_summary %}
+                        <tr>
+                            <td>{{ report_date|date:"F j" }}</td>
+                            <td>
+                                <strong>{{ item.product|default:'—' }}</strong>
+                            </td>
+                            <td class="text-success">AED {{ item.total_sales|floatformat:0|intcomma }}</td>
+                            <td class="{% if item.not_sold_count > 0 %}text-warning{% else %}text-muted{% endif %}">
+                                {{ item.not_sold_count|default:0 }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="no-results">
+                                <i class="fas fa-chart-bar"></i>
+                                <h3>No data for this date</h3>
+                                <p>There are no transactions recorded for {{ report_date|date:"F j, Y" }}</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% if chart_labels != '[]' %}
+        <div class="chart-section">
+            <h3>Sales Distribution</h3>
+            <div class="chart-container">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="status-bar">
+            <span><i class="fas fa-table"></i> {{ daily_summary|length }} items</span>
+            <span><i class="fas fa-calculator"></i> Last updated: {% now "H:i:s" %}</span>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<script>
+    function applySearch() {
+        const search = document.getElementById('searchInput').value;
+        const url = new URL(window.location.href);
+        url.searchParams.set('search', search);
+        window.location.href = url.toString();
+    }
+
+    function exportToExcel() {
+        const table = document.getElementById('reportTable');
+        let csv = [];
+        
+        // Extract headers
+        let headers = [];
+        table.querySelectorAll('thead th').forEach(th => {
+            headers.push(th.innerText);
+        });
+        csv.push(headers.join(','));
+        
+        // Extract data
+        table.querySelectorAll('tbody tr').forEach(tr => {
+            let row = [];
+            tr.querySelectorAll('td').forEach(td => {
+                row.push('"' + td.innerText.replace(/"/g, '""') + '"');
+            });
+            csv.push(row.join(','));
+        });
+        
+        // Download
+        const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'container_report_{{ report_date|date:"Y-m-d" }}.csv';
+        a.click();
+    }
+
+    // Search on Enter
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            applySearch();
+        }
+    });
+    if (chartLabels.length > 0) {
+        const ctx = document.getElementById('salesChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Sales (AED)',
+                    data: chartData,
+                    backgroundColor: '#4361ee',
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

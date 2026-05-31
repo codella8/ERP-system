@@ -1,6 +1,6 @@
 # containers/admin.py
 from django.contrib import admin
-from .models import Saraf, SarafTransaction, Container, Inventory_List, ContainerTransaction
+from .models import Container, Inventory_List, ContainerTransaction
 from django.http import HttpResponse
 import csv
 from django.utils.translation import gettext_lazy as _
@@ -13,7 +13,7 @@ class ContainerAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at",)
     ordering = ("-created_at",)
     actions = ["export_selected_csv"]
-
+ 
     def export_selected_csv(self, request, queryset):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="containers.csv"'
@@ -49,36 +49,6 @@ class InventoryAdmin(admin.ModelAdmin):
         return response
     export_selected_csv.short_description = _("Export selected inventory")
 
-@admin.register(Saraf)
-class SarafAdmin(admin.ModelAdmin):
-    list_display = ("short_user", "is_active", "created_at")
-    search_fields = ("user__user__username", "user__first_name", "user__last_name")
-    list_filter = ("is_active",)
-    readonly_fields = ("created_at","updated_at")
-    actions = ["export_selected_csv"]
-
-    def short_user(self, obj):
-        return str(obj.user) if obj.user else "-"
-    short_user.short_description = _("User")
-
-@admin.register(SarafTransaction)
-class SarafTransactionAdmin(admin.ModelAdmin):
-    list_display = ("saraf", "currency", "received_from_saraf", "paid_by_company",  "transaction_time")
-    search_fields = ("saraf__user__user__username", "saraf__user__first_name", "saraf__user__last_name")
-    list_filter = ("currency",)
-    readonly_fields = ("created_at","updated_at")
-    date_hierarchy = "transaction_time"
-    actions = ["export_selected_csv"]
-
-    def export_selected_csv(self, queryset):
-        response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = "attachment; filename=saraf_transactions.csv"
-        writer = csv.writer(response)
-        writer.writerow(["id","saraf","container","currency","received_from_saraf","paid_by_company""transaction_time"])
-        for obj in queryset:
-            writer.writerow([str(obj.id), str(obj.saraf), str(obj.container or ""), obj.currency, str(obj.received_from_saraf), str(obj.paid_by_company), str(obj.balance), obj.transaction_time.isoformat()])
-        return response
-    export_selected_csv.short_description = _("Export selected saraf transactions")
 
 @admin.register(ContainerTransaction)
 class ContainerTransactionAdmin(admin.ModelAdmin):

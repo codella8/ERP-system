@@ -2,310 +2,569 @@
 {% load static %}
 {% load humanize %}
 
-{% block title %}Almuqbil | Containers list{% endblock %}
+{% block title %}Almuqbil | Container Management{% endblock %}
 
 {% block content %}
 <div class="container-list-minimal">
-  <!-- Header Section -->
-  <header class="page-header">
-    <div class="header-main">
-      <div class="header-title-section">
-        <h1 class="page-title">
-          <span class="title-main text-dark ">Container Management</span>
-          <span class="title-counter">{{ containers|length }} containers</span>
-        </h1>
-        <p class="page-subtitle">Efficient management of all container operations and inventory</p>
-      </div>
-    </div>
-
-    <!-- Search and Filter Bar -->
-    <div class="controls-bar">
-      <form method="GET" action="" class="search-form" id="searchForm">
-        <div class="search-wrapper">
-          <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" />
-            <path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2" />
-          </svg>
-          <input type="text" name="q" class="search-input" placeholder="Search by name, company, or product..."
-            aria-label="Search containers" value="{{ request.GET.q|default:'' }}" autocomplete="off">
-          {% if request.GET.q %}
-          <button type="button" class="clear-search" onclick="clearSearch()" aria-label="Clear search">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M18 6L6 18M6 6l12 18" stroke="currentColor" stroke-width="2" />
-            </svg>
-          </button>
-          {% endif %}
+    <div class="excel-box">
+        <div class="excel-menu">
+        
+            <a href="{% url 'containers:inventory_list' %}" class="menu-item">
+                <i class="fas fa-chart-bar"></i>Inventory
+            </a>
+            <a href="{% url 'containers:daily_report' %}" class="menu-item">
+                <i class="fas fa-check-double"></i> Report
+            </a>
+        </div>
+        <!-- Page Header -->
+        <header class="page-header">
+            <div class="header-main">
+                <div class="header-title-section">
+                    <h1 class="page-title">
+                        <span class="title-main">📦 Container Management</span>
+                        <span class="title-counter">{{ total_containers }} containers</span>
+                    </h1>
+                    <p class="page-subtitle">Excel-like view • Double-click cells to edit • Click + to add new</p>
+                </div>
+            </div>
+        </header>
+        <div class="excel-toolbar">
+            <button class="toolbar-btn primary" id="newContainerBtn">
+                <i class="fas fa-plus"></i> New Container
+            </button>
+            <button class="toolbar-btn" onclick="location.reload()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <span style="flex:1"></span>
+            <span class="text-muted">📅 {% now "F j, Y" %} | {% now "l" %}</span>
         </div>
 
-        <div class="filter-actions">
-          <button type="submit" class="search-btn">
-            Search
-          </button>
-          {% if request.GET.q %}
-          <a href="{% url 'containers:list' %}" class="reset-btn">
-            Clear All
-          </a>
-          {% endif %}
-        </div>
-      </form>
-    </div>
-  </header>
-
-  <!-- Main Content -->
-  <main class="content-main">
-    <!-- Table Container -->
-    <div class="table-wrapper">
-      <div class="table-scroll">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th class="column-header">
-                <div class="header-content">
-                  <span>Container</span>
-                  <button class="sort-btn" data-sort="name" aria-label="Sort by name">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" stroke="currentColor" stroke-width="2" />
+        <div class="controls-bar">
+            <form method="GET" action="" class="search-form" id="searchForm">
+                <div class="search-wrapper">
+                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                        <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" />
+                        <path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2" />
                     </svg>
-                  </button>
-                </div>
-              </th>
-              <th class="column-header">
-                <div class="header-content">
-                  <span>Company</span>
-                  <button class="sort-btn" data-sort="company" aria-label="Sort by company">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" stroke="currentColor" stroke-width="2" />
-                    </svg>
-                  </button>
-                </div>
-              </th>
-              <th class="column-header">
-                <div class="header-content">
-                  <span>UnitPrice</span>
-                  <button class="sort-btn" data-sort="company" aria-label="Sort by company">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" stroke="currentColor" stroke-width="2" />
-                    </svg>
-                  </button>
-                </div>
-              </th>
-              <th class="column-header">
-                <div class="header-content">
-                  <span>Products</span>
-                  <button class="sort-btn" data-sort="products" aria-label="Sort by product count">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" stroke="currentColor" stroke-width="2" />
-                    </svg>
-                  </button>
-                </div>
-              </th>
-              <th class="column-header">
-                <div class="header-content">
-                  <span>Stock Qty</span>
-                  <button class="sort-btn" data-sort="stock" aria-label="Sort by stock quantity">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" stroke="currentColor" stroke-width="2" />
-                    </svg>
-                  </button>
-                </div>
-              </th>
-              <th class="column-header">
-                <div class="header-content">
-                  <span>Inventory Value</span>
-                  <button class="sort-btn" data-sort="value" aria-label="Sort by inventory value">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                      <path d="M8 9l4-4 4 4M16 15l-4 4-4-4" stroke="currentColor" stroke-width="2" />
-                    </svg>
-                  </button>
-                </div>
-              </th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {% for container in containers %}
-            <tr class="data-row" data-container-id="{{ container.id }}">
-              <td class="data-cell">
-                <div class="container-info">
-                  <div class="container-name-wrapper">
-                    <strong class="container-name">
-                      <a href="{% url 'containers:detail' container.id %}" class="container-link">
-                        {{ container.name|default:"Unnamed Container" }}
-                      </a>
-                    </strong>
-                    <span class="container-id">#{{ container.id|stringformat:"06d" }}</span>
-                  </div>
-                  {% if container.description %}
-                  <div class="description-hint" title="{{ container.description }}">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" />
-                      <path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="1.5" />
-                    </svg>
-                  </div>
-                  {% endif %}
-                </div>
-              </td>
-
-              <td class="data-cell">
-                <div class="company-info">
-                  {% if container.company %}
-                  <span class="company-name">{{ container.company.name }}</span>
-                  {% else %}
-                  <span class="no-company">—</span>
-                  {% endif %}
-                </div>
-              </td>
-
-              <td class="data-cell">
-                <div class="company-info">
-                  {% if container.price %}
-                  <span class="company-name">{{ container.price }}</span>
-                  {% else %}
-                  <span class="no-company">—</span>
-                  {% endif %}
-                </div>
-              </td>
-
-              <td class="data-cell">
-                <div class="metric-display">
-                  <span class="metric-value">{{ container.products_count|default:0 }}</span>
-                  <span class="metric-label">items</span>
-                </div>
-              </td>
-
-              <td class="data-cell">
-                <div class="metric-display stock-metric">
-                  <span class="metric-value">{{ container.total_in_stock_qty|default:0|intcomma }}</span>
-                  <span class="metric-label">units</span>
-                </div>
-              </td>
-
-              <td class="data-cell">
-                <div class="metric-display value-metric">
-                  <span class="metric-value">AED {{ container.total_inventory_value|default:0|intcomma }}</span>
-                </div>
-              </td>
-            </tr>
-            {% empty %}
-            <tr class="empty-row">
-              <td colspan="5">
-                <div class="empty-state">
-                  <div class="empty-icon">
-                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
-                      <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.5" />
-                      <path d="M8 8h8M8 12h8M8 16h8" stroke="currentColor" stroke-width="1.5" />
-                    </svg>
-                  </div>
-                  <h3 class="empty-title">
-                    {% if request.GET.q %}
-                    No Containers Found
-                    {% else %}
-                    No Containers Available
+                    <input type="text" name="search" class="search-input"
+                        placeholder="Search containers by number, supplier or code..." value="{{ search|default:'' }}">
+                    {% if search %}
+                    <button type="button" class="clear-search" onclick="clearSearch()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                    </button>
                     {% endif %}
-                  </h3>
-                  <p class="empty-message">
-                    {% if request.GET.q %}
-                    No containers match your search "{{ request.GET.q }}". Try different keywords.
-                    {% else %}
-                    Start by adding your first container to the system.
-                    {% endif %}
-                  </p>
-                  {% if not request.GET.q %}
-                  <a href="{% url 'admin:containers_container_add' %}" class="empty-action">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" />
-                    </svg>
-                    Add Container
-                  </a>
-                  {% endif %}
                 </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Pagination -->
-    {% if is_paginated %}
-    <div class="pagination">
-      <div class="pagination-info">
-        <span class="current-page">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-        <span class="total-items">{{ paginator.count }} total containers</span>
-      </div>
-
-      <div class="pagination-controls">
-        {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
-          class="page-nav prev">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" />
-          </svg>
-          Previous
-        </a>
-        {% endif %}
-
-        <div class="page-numbers">
-          {% for num in page_obj.paginator.page_range %}
-          {% if page_obj.number == num %}
-          <span class="page-number active">{{ num }}</span>
-          {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <a
-            href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" class="page-number">{{ num
-            }}</a>
-            {% endif %}
-            {% endfor %}
+                <div class="filter-actions">
+                    <button type="submit" class="search-btn">Search</button>
+                    {% if search or status_filter or date_from or date_to %}
+                    <a href="{% url 'containers:list' %}" class="reset-btn">Clear All</a>
+                    {% endif %}
+                </div>
+            </form>
         </div>
 
-        {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}"
-          class="page-nav next">
-          Next
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" />
-          </svg>
-        </a>
+        <div class="filter-row">
+            <div class="filter-group">
+                <label>Status:</label>
+                <select name="status" class="filter-select" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="in_transit" {% if status_filter == 'in_transit' %}selected{% endif %}>🚢 In Transit</option>
+                    <option value="arrived" {% if status_filter == 'arrived' %}selected{% endif %}>✅ Arrived</option>
+                    <option value="awaiting" {% if status_filter == 'awaiting' %}selected{% endif %}>⏳ Awaiting</option>
+                    <option value="cleared" {% if status_filter == 'cleared' %}selected{% endif %}>📦 Cleared</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>From:</label>
+                <input type="date" name="date_from" class="filter-date" id="dateFrom" value="{{ date_from }}">
+            </div>
+            <div class="filter-group">
+                <label>To:</label>
+                <input type="date" name="date_to" class="filter-date" id="dateTo" value="{{ date_to }}">
+            </div>
+            <button class="apply-filter-btn" id="applyFilter">Apply Filters</button>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-ship"></i></div>
+                <div class="summary-content">
+                    <h3>{{ total_containers }}</h3>
+                    <p>Total Containers</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-boxes"></i></div>
+                <div class="summary-content">
+                    <h3>{{ total_items|default:0|intcomma }}</h3>
+                    <p>Total Items</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-dollar-sign"></i></div>
+                <div class="summary-content">
+                    <h3>AED {{ total_value|default:0|floatformat:0|intcomma }}</h3>
+                    <p>Inventory Value</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-chart-line"></i></div>
+                <div class="summary-content">
+                    <h3>{{ in_transit_count|default:0 }}</h3>
+                    <p>In Transit</p>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon"><i class="fas fa-check-circle"></i></div>
+                <div class="summary-content">
+                    <h3>{{ arrived_count|default:0 }}</h3>
+                    <p>Arrived</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="new-row-form" id="newContainerRow" style="display: none;">
+            <div class="field-group">
+                <label>Container #</label>
+                <input type="text" id="new_container_number" placeholder="e.g., MRSU-5724751" required>
+            </div>
+            <div class="field-group">
+                <label>Supplier</label>
+                <input type="text" id="new_supplier" placeholder="e.g., Xpress">
+            </div>
+            <div class="field-group">
+                <label>Code</label>
+                <input type="text" id="new_code" placeholder="e.g., G50">
+            </div>
+            <div class="field-group">
+                <label>Arrival</label>
+                <input type="date" id="new_arrival_date" value="{% now 'Y-m-d' %}">
+            </div>
+            <div class="field-group">
+                <label>Status</label>
+                <select id="new_status">
+                    <option value="in_transit">🚢 In Transit</option>
+                    <option value="arrived">✅ Arrived</option>
+                    <option value="awaiting" selected>⏳ Awaiting</option>
+                    <option value="cleared">📦 Cleared</option>
+                </select>
+            </div>
+            <div class="field-group">
+                <label>Sales</label>
+                <input type="number" id="new_total_sales" value="0" step="0.01" min="0">
+            </div>
+            <div class="field-group">
+                <label>Expenses</label>
+                <input type="number" id="new_total_expenses" value="0" step="0.01" min="0">
+            </div>
+            <button class="toolbar-btn success" id="saveNewContainer">
+                <i class="fas fa-save"></i> Save
+            </button>
+            <button class="toolbar-btn" id="cancelNewContainer">
+                <i class="fas fa-times"></i> Cancel
+            </button>
+        </div>
+
+        <div class="table-wrapper">
+            <div class="table-scroll">
+                <table class="data-table" id="containersTable">
+                    <thead>
+                        <tr>
+                            <th>Container No.</th>
+                            <th>Supplier</th>
+                            <th>Code</th>
+                            <th>Arrival Date</th>
+                            <th>Total Sales</th>
+                            <th>Total Expenses</th>
+                            <th>Net Value</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        {% for container in containers %}
+                        <tr class="data-row" data-id="{{ container.id }}">
+                            <td class="editable-cell" data-field="container_number">
+                                <span class="cell-value">{{ container.container_number }}</span>
+                                <input type="text" value="{{ container.container_number }}" class="edit-input">
+                            </td>
+                            <td class="editable-cell" data-field="supplier">
+                                <span class="cell-value">{{ container.supplier|default:'—' }}</span>
+                                <input type="text" value="{{ container.supplier|default:'' }}" class="edit-input">
+                            </td>
+                            <td class="editable-cell" data-field="code">
+                                <span class="cell-value">{{ container.code|default:'—' }}</span>
+                                <input type="text" value="{{ container.code|default:'' }}" class="edit-input">
+                            </td>
+                            <td class="editable-cell" data-field="arrival_date" data-type="date">
+                                <span class="cell-value">
+                                    {% if container.arrival_date %}
+                                        {{ container.arrival_date|date:"M d, Y" }}
+                                    {% else %}—{% endif %}
+                                </span>
+                                <input type="date" value="{{ container.arrival_date|date:'Y-m-d' }}" class="edit-input">
+                            </td>
+                            <td class="editable-cell" data-field="total_sales" data-type="number">
+                                <span class="cell-value">{{ container.total_sales|default:0|floatformat:0|intcomma }}</span>
+                                <input type="number" value="{{ container.total_sales|default:0 }}" step="0.01" min="0" class="edit-input">
+                            </td>
+                            <td class="editable-cell" data-field="total_expenses" data-type="number">
+                                <span class="cell-value">{{ container.total_expenses|default:0|floatformat:0|intcomma }}</span>
+                                <input type="number" value="{{ container.total_expenses|default:0 }}" step="0.01" min="0" class="edit-input">
+                            </td>
+                            <td class="value-metric {% if container.profit < 0 %}negative{% endif %}">
+                                AED {{ container.profit|default:0|floatformat:0|intcomma }}
+                            </td>
+                            <td class="editable-cell" data-field="transport_status" data-type="select">
+                                <span class="cell-value">
+                                    {% if container.transport_status == 'in_transit' %}🚢 In Transit
+                                    {% elif container.transport_status == 'arrived' %}✅ Arrived
+                                    {% elif container.transport_status == 'awaiting' %}⏳ Awaiting
+                                    {% elif container.transport_status == 'cleared' %}📦 Cleared
+                                    {% else %}⏳ Awaiting{% endif %}
+                                </span>
+                                <select class="edit-input">
+                                    <option value="in_transit" {% if container.transport_status == 'in_transit' %}selected{% endif %}>🚢 In Transit</option>
+                                    <option value="arrived" {% if container.transport_status == 'arrived' %}selected{% endif %}>✅ Arrived</option>
+                                    <option value="awaiting" {% if container.transport_status == 'awaiting' %}selected{% endif %}>⏳ Awaiting</option>
+                                    <option value="cleared" {% if container.transport_status == 'cleared' %}selected{% endif %}>📦 Cleared</option>
+                                </select>
+                            </td>
+                            <td class="action-cell">
+                                <button class="action-btn edit-btn" onclick="editRow(this)" title="Edit">✏️</button>
+                                <button class="action-btn save-btn" onclick="saveRow(this)" title="Save" style="display:none;">💾</button>
+                                <button class="action-btn cancel-btn" onclick="cancelEdit(this)" title="Cancel" style="display:none;">❌</button>
+                                <a href="{% url 'containers:detail' container.id %}" class="action-btn" title="View Details">👁️</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr class="empty-row">
+                            <td colspan="9">
+                                <div class="empty-state">
+                                    <div class="empty-icon">📦</div>
+                                    <h3 class="empty-title">No Containers Found</h3>
+                                    <p class="empty-message">Click the "New Container" button to add your first container.</p>
+                                    <button class="empty-action" id="emptyStateAddBtn">
+                                        <i class="fas fa-plus"></i> Add Container
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <button class="add-row-btn" id="addRowBtn">
+            <i class="fas fa-plus"></i> Add New Container
+        </button>
+
+        <div class="status-bar">
+            <span><i class="fas fa-table"></i> {{ total_containers }} containers | {{ total_items|default:0|intcomma }} items</span>
+            <span><i class="fas fa-calculator"></i> Total Value: AED {{ total_value|default:0|floatformat:0|intcomma }}</span>
+            <span><i class="fas fa-edit"></i> Double-click cells to edit</span>
+        </div>
+        {% if is_paginated %}
+        <div class="pagination">
+            <div class="pagination-info">
+                <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                <span>{{ paginator.count }} total containers</span>
+            </div>
+            <div class="pagination-controls">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="page-nav">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </a>
+                {% endif %}
+
+                <div class="page-numbers">
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if num == page_obj.number %}
+                            <span class="page-number active">{{ num }}</span>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                            <a href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="page-number">{{ num }}</a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="page-nav">
+                    Next <i class="fas fa-chevron-right"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
         {% endif %}
-      </div>
     </div>
-    {% endif %}
-  </main>
 </div>
 
 <script>
-  // Auto-submit form on Enter key in search input
-  document.addEventListener('DOMContentLoaded', function () {
-    const searchInput = document.querySelector('.search-input');
-    const searchForm = document.getElementById('searchForm');
+    $(document).ready(function () {
+        let editingRow = null;
+        let originalValues = {};
 
-    if (searchInput) {
-      searchInput.addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          searchForm.submit();
+        $('#newContainerBtn, #addRowBtn, #emptyStateAddBtn').click(function () {
+            $('#newContainerRow').slideToggle(300);
+            if ($('#newContainerRow').is(':visible')) {
+                $('#new_container_number').focus();
+            }
+        });
+
+        $('#cancelNewContainer').click(function () {
+            $('#newContainerRow').slideUp(300);
+            clearNewForm();
+        });
+
+        $('#saveNewContainer').click(function () {
+            const containerNumber = $('#new_container_number').val().trim();
+            if (!containerNumber) {
+                showToast('Container number is required', 'error');
+                $('#new_container_number').focus();
+                return;
+            }
+
+            const $btn = $(this);
+            const originalText = $btn.html();
+            $btn.html('<i class="fas fa-spinner fa-spin"></i> Saving...').prop('disabled', true);
+
+            const data = {
+                container_number: containerNumber,
+                supplier: $('#new_supplier').val(),
+                code: $('#new_code').val(),
+                transport_status: $('#new_status').val(),
+                arrival_date: $('#new_arrival_date').val(),
+                total_sales: $('#new_total_sales').val(),
+                total_expenses: $('#new_total_expenses').val(),
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            };
+
+            $.ajax({
+                url: '{% url "containers:container_create_ajax" %}',
+                method: 'POST',
+                data: data,
+                success: function (response) {
+                    if (response.success) {
+                        showToast('✅ Container created successfully', 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    } else {
+                        showToast('❌ Error: ' + response.error, 'error');
+                        $btn.html(originalText).prop('disabled', false);
+                    }
+                },
+                error: function (xhr) {
+                    let errorMsg = 'Error creating container';
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        errorMsg = response.error || errorMsg;
+                    } catch (e) { }
+                    showToast('❌ ' + errorMsg, 'error');
+                    $btn.html(originalText).prop('disabled', false);
+                }
+            });
+        });
+
+        $('.editable-cell').on('dblclick', function (e) {
+            e.stopPropagation();
+            const row = $(this).closest('tr');
+            const rowId = row.data('id');
+
+            if (editingRow && editingRow !== rowId) {
+                saveRow(editingRow);
+            }
+
+            if (!row.hasClass('editing')) {
+                startEditing(row);
+            }
+
+            const cell = $(this);
+            if (!cell.hasClass('editing')) {
+                cell.addClass('editing');
+                cell.find('input, select').focus();
+            }
+        });
+
+        function startEditing(row) {
+            const rowId = row.data('id');
+            editingRow = rowId;
+
+            originalValues[rowId] = {};
+            row.find('.editable-cell').each(function () {
+                const field = $(this).data('field');
+                const value = $(this).find('.cell-value').text().trim();
+                originalValues[rowId][field] = value;
+            });
+
+            row.addClass('editing');
+            row.find('.edit-btn').hide();
+            row.find('.save-btn, .cancel-btn').show();
         }
-      });
-    }
-  });
 
-  function clearSearch() {
-    const searchInput = document.querySelector('.search-input');
-    const searchForm = document.getElementById('searchForm');
+        window.saveRow = function (button) {
+            const row = $(button).closest('tr');
+            const rowId = row.data('id');
+            const changes = {};
 
-    if (searchInput) {
-      searchInput.value = '';
-      searchForm.submit();
-    }
-  }
-  function getColumnIndex(field) {
-    const fieldMap = {
-      'name': 1,
-      'company': 2,
-      'products': 3,
-      'stock': 4,
-      'value': 5
-    };
-    return fieldMap[field] || 1;
-  }
+            row.find('.editable-cell.editing').each(function () {
+                const field = $(this).data('field');
+                const newValue = $(this).find('input, select').val();
+                changes[field] = newValue;
+                $(this).removeClass('editing');
+            });
+
+            if (Object.keys(changes).length > 0) {
+                $.ajax({
+                    url: '/containers/api/container/' + rowId + '/update/',
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    },
+                    data: JSON.stringify(changes),
+                    success: function (response) {
+                        if (response.success) {
+                            Object.keys(changes).forEach(field => {
+                                const cell = row.find(`.editable-cell[data-field="${field}"]`);
+                                let displayValue = changes[field];
+
+                                if (field === 'transport_status') {
+                                    const icons = {
+                                        'in_transit': '🚢',
+                                        'arrived': '✅',
+                                        'awaiting': '⏳',
+                                        'cleared': '📦'
+                                    };
+                                    const icon = icons[changes[field]] || '';
+                                    const statusText = changes[field].replace('_', ' ').toUpperCase();
+                                    displayValue = icon + ' ' + statusText;
+                                } else if (field === 'arrival_date' && changes[field]) {
+                                    const date = new Date(changes[field]);
+                                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                    displayValue = months[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear();
+                                } else if (field === 'total_sales' || field === 'total_expenses') {
+                                    displayValue = Number(changes[field]).toLocaleString();
+                                }
+
+                                cell.find('.cell-value').text(displayValue);
+                            });
+
+                            const totalSales = parseFloat(row.find('.editable-cell[data-field="total_sales"] .cell-value').text().replace(/[^0-9.-]/g, '')) || 0;
+                            const totalExpenses = parseFloat(row.find('.editable-cell[data-field="total_expenses"] .cell-value').text().replace(/[^0-9.-]/g, '')) || 0;
+                            const netValue = totalSales - totalExpenses;
+                            row.find('.value-metric').text('AED ' + netValue.toLocaleString());
+
+                            showToast('✅ Changes saved', 'success');
+                        }
+                    },
+                    error: function (xhr) {
+                        let errorMsg = 'Error saving changes';
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            errorMsg = response.error || errorMsg;
+                        } catch (e) { }
+                        showToast('❌ ' + errorMsg, 'error');
+                        cancelEdit(button);
+                    }
+                });
+            } else {
+                showToast('ℹ️ No changes to save', 'info');
+            }
+
+            endEditing(row);
+        };
+
+    
+        window.cancelEdit = function (button) {
+            const row = $(button).closest('tr');
+            const rowId = row.data('id');
+
+            row.find('.editable-cell.editing').each(function () {
+                const field = $(this).data('field');
+                $(this).find('.cell-value').text(originalValues[rowId][field]);
+                $(this).removeClass('editing');
+            });
+
+            endEditing(row);
+            showToast('✖️ Editing cancelled', 'info');
+        };
+
+        function endEditing(row) {
+            row.removeClass('editing');
+            row.find('.edit-btn').show();
+            row.find('.save-btn, .cancel-btn').hide();
+            editingRow = null;
+        }
+
+        $('#applyFilter').click(function () {
+            const status = $('#statusFilter').val();
+            const dateFrom = $('#dateFrom').val();
+            const dateTo = $('#dateTo').val();
+
+            let url = '{% url "containers:list" %}?';
+            const params = [];
+
+            const search = '{{ search|default:"" }}';
+            if (search) params.push('search=' + encodeURIComponent(search));
+            if (status) params.push('status=' + status);
+            if (dateFrom) params.push('date_from=' + dateFrom);
+            if (dateTo) params.push('date_to=' + dateTo);
+
+            window.location.href = url + params.join('&');
+        });
+
+        // ========== پاک کردن جستجو ==========
+        window.clearSearch = function () {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('search');
+            window.location.href = url.toString();
+        };
+
+        // ========== نمایش Toast ==========
+        function showToast(message, type) {
+            const colors = {
+                success: '#06a77d',
+                error: '#f94144',
+                warning: '#f9c74f',
+                info: '#4361ee'
+            };
+
+            const toast = $('<div>', {
+                class: 'toast-message',
+                css: {
+                    position: 'fixed',
+                    top: '24px',
+                    right: '24px',
+                    padding: '14px 28px',
+                    background: colors[type] || colors.info,
+                    color: 'white',
+                    borderRadius: '50px',
+                    zIndex: 9999,
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+                    fontSize: '14px',
+                    fontWeight: '500'
+                },
+                text: message
+            });
+            $('body').append(toast);
+            setTimeout(() => toast.fadeOut(300, function () { $(this).remove(); }), 3000);
+        }
+
+        function clearNewForm() {
+            $('#new_container_number, #new_supplier, #new_code').val('');
+            $('#new_total_sales, #new_total_expenses').val('0');
+            $('#new_arrival_date').val('{% now "Y-m-d" %}');
+            $('#new_status').val('awaiting');
+        }
+
+        $('#new_container_number, #new_supplier, #new_code, #new_arrival_date, #new_status, #new_total_sales, #new_total_expenses').keypress(function (e) {
+            if (e.which == 13) {
+                e.preventDefault();
+                $('#saveNewContainer').click();
+            }
+        });
+    });
 </script>
 {% endblock %}

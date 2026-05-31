@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
-<html lang="{{ LANGUAGE_CODE|default:'en' }}">
+<html dir="rtl">
 
 <head>
   <meta charset="utf-8">
@@ -12,6 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
   <link rel="stylesheet" href="{% static 'css/container_style.css' %}">
 
@@ -19,50 +20,78 @@
 </head>
 
 <body>
-  <header class="site-header">
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-      <div class="container">
-        <a class="navbar-brand" href="{% url 'accounts:dashboard' %}">
-          Almuqbil
-        </a>
+    <div class="dashboard-layout">
+      <!-- Top Navbar -->
+      <nav class="top-navbar">
+        <div class="navbar-container">
+          <div class="navbar-logo">
+            <div class="logo-text">
+              <h2>ALMUQBIL</h2>
+            </div>
+          </div>
 
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
-          <span class="navbar-toggler-icon"></span>
-        </button>
+          <!-- Mobile Menu Button -->
+          <button class="mobile-menu-btn" id="mobileMenuBtn">
+            <i class="fas fa-bars"></i>
+          </button>
 
-        <div class="collapse navbar-collapse" id="mainNav">
-          <ul class="navbar-nav me-auto">
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'containers:list' %}">
-                <i class="fas fa-boxes me-1"></i>
-                containers
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'containers:saraf_list' %}">
-                <i class="fas fa-coins me-1"></i>
-                sarafs
-              </a>
-            </li>
+          <div class="navbar-menu" id="navbarMenu">
+            <ul class="menu-list">
+              <li class="menu-item">
+                <a href="{% url 'accounts:home' %}" class="menu-link" data-app="sales">
+                  <i class="menu-icon fas fa-shopping-cart"></i>
+                  <span class="menu-label">Home</span>
+                </a>
+              </li>
+              <li class="menu-item">
+                <a href="{% url 'daily_sale:transaction_list' %}" class="menu-link active" data-app="sales">
+                  <i class="menu-icon fas fa-shopping-cart"></i>
+                  <span class="menu-label">Daily Sales</span>
+                </a>
+              </li>
+              <li class="menu-item">
+                <a href="{% url 'containers:list' %}" class="menu-link" data-app="containers">
+                  <i class="menu-icon fas fa-shipping-fast"></i>
+                  <span class="menu-label">Containers</span>
+                </a>
+              </li>
+              <li class="menu-item">
+                <a href="{% url 'employee:person_list' %}" class="menu-link" data-app="employees">
+                  <i class="menu-icon fas fa-users"></i>
+                  <span class="menu-label">Employees</span>
+                </a>
+              </li>
+              <li class="menu-item">
+                <a href="{% url 'expenses:expense_list' %}" class="menu-link" data-app="expenses">
+                  <i class="menu-icon fas fa-money-bill-wave"></i>
+                  <span class="menu-label">Expenses</span>
+                </a>
+              </li>
+              <li class="menu-item">
+                <a href="#" class="menu-link" data-app="reports">
+                  <i class="menu-icon fas fa-chart-pie"></i>
+                  <span class="menu-label">Reports</span>
+                </a>
+              </li>
+            </ul>
+          </div>
 
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'accounts:dashboard' %}">
-                <i class="bi bi-house me-2"></i>
-                Home
-              </a>
-            </li>
-
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'admin:index' %}">
-                <i class="bi bi-shield-check me-1 luxury-nav-icon"></i>
-                Admin Panel
-              </a>
-            </li>
-          </ul>
+          <div class="navbar-user">
+            <div class="user-profile">
+              <i class="fas fa-user-circle"></i>
+              <span>
+                {% if user.get_full_name %}
+                {{ user.get_full_name }}
+                {% else %}
+                {{ user.username }}
+                {% endif %}
+              </span>
+              <i class="fas fa-chevron-down"></i>
+            </div>
+          </div>
         </div>
-      </div>
-    </nav>
-  </header>
+      </nav>
+    </div>
 
   <main class="py-4">
     <div class="container">
@@ -89,4 +118,5 @@
     </div>
   </main>
 </body>
+
 </html>

@@ -1,50 +1,42 @@
+# forms.py
 from django import forms
-from .models import Employee, SalaryPayment
+from .models import Person, SarafTransaction
 
-class EmployeeForm(forms.ModelForm):
+class PersonForm(forms.ModelForm):
     class Meta:
-        model = Employee
+        model = Person
         fields = [
-            'employee',
-            'position',
-            'employment_type',
-            'is_active',
-            'date',
-            'hire_date',
-            'termination_date',
-            'salary_due',
-            'debt_to_company',
-            'note',
+            'person_type', 'status', 'name', 'phone', 'email', 'address',
+            'salary', 'department', 'hire_date',
+            'license_number', 'commission_rate'
         ]
         widgets = {
-            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'hire_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'termination_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'salary_due': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'debt_to_company': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'position': forms.TextInput(attrs={'class': 'form-control'}),
-            'note': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'person_type': forms.Select(attrs={'class': 'excel-select'}),
+            'status': forms.Select(attrs={'class': 'excel-select'}),
+            'name': forms.TextInput(attrs={'class': 'excel-input', 'placeholder': 'Full name'}),
+            'phone': forms.TextInput(attrs={'class': 'excel-input', 'placeholder': 'Phone number'}),
+            'email': forms.EmailInput(attrs={'class': 'excel-input', 'placeholder': 'Email address'}),
+            'address': forms.Textarea(attrs={'class': 'excel-input', 'rows': 2, 'placeholder': 'Address'}),
+            'salary': forms.NumberInput(attrs={'class': 'excel-input', 'step': '0.01', 'min': '0'}),
+            'department': forms.TextInput(attrs={'class': 'excel-input', 'placeholder': 'Department'}),
+            'hire_date': forms.DateInput(attrs={'class': 'excel-input', 'type': 'date'}),
+            'license_number': forms.TextInput(attrs={'class': 'excel-input', 'placeholder': 'License number'}),
+            'commission_rate': forms.NumberInput(attrs={'class': 'excel-input', 'step': '0.1', 'min': '0', 'max': '100'}),
         }
 
-class SalaryPaymentForm(forms.ModelForm):
+
+class SarafTransactionForm(forms.ModelForm):
     class Meta:
-        model = SalaryPayment
-        fields = [
-            'employee', 
-            'date',
-            'salary_amount',
-            'is_paid',
-            'payment_method',
-            'reference_number',
-            'note',
-        ]
+        model = SarafTransaction
+        fields = ['saraf', 'day', 'date', 'description', 'paid_by', 'received_by', 'category', 'cash_in', 'cash_out']
         widgets = {
-            'employee': forms.Select(attrs={'class': 'form-select'}),
-            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'salary_amount': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'is_paid': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'payment_method': forms.Select(attrs={'class': 'form-select'}),
-            'reference_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'note': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'saraf': forms.Select(attrs={'class': 'excel-select'}),
+            'day': forms.TextInput(attrs={'class': 'excel-input', 'placeholder': 'e.g., Monday'}),
+            'date': forms.DateInput(attrs={'class': 'excel-input', 'type': 'date'}),
+            'description': forms.Textarea(attrs={'class': 'excel-input', 'rows': 2, 'placeholder': 'Transaction description'}),
+            'paid_by': forms.TextInput(attrs={'class': 'excel-input', 'placeholder': 'Who paid?'}),
+            'received_by': forms.TextInput(attrs={'class': 'excel-input', 'placeholder': 'Who received?'}),
+            'category': forms.Select(attrs={'class': 'excel-select'}),
+            'cash_in': forms.NumberInput(attrs={'class': 'excel-input', 'step': '0.01', 'min': '0'}),
+            'cash_out': forms.NumberInput(attrs={'class': 'excel-input', 'step': '0.01', 'min': '0'}),
         }

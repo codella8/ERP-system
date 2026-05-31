@@ -5,7 +5,6 @@ from . import views
 app_name = "daily_sale"
 
 urlpatterns = [
-    path('dashboard/', views.dashboard, name='dashboard'),
     path("cleared_transactions/", views.cleared_transactions, name="cleared_transactions"),
     path("create/", views.transaction_create, name="transaction_create"),
     path("transactions/", views.transaction_list, name="transaction_list"),
@@ -19,6 +18,8 @@ urlpatterns = [
     path('ajax/customers/', views.ajax_search_customers, name='ajax_search_customers'),
     path('ajax/containers/', views.ajax_search_containers, name='ajax_search_containers'),
     path('ajax/item-autofill/', views.ajax_item_autofill, name='ajax_item_autofill'),
+    path('transaction/<uuid:pk>/update/', views.transaction_update_ajax, name='transaction_update_ajax'),
+    path('transactions/bulk-update/', views.transaction_bulk_update, name='transaction_bulk_update'),
     path('transactions/<uuid:pk>/', views.invoice_view, name='invoice'),
     path('transactions/<uuid:pk>/', views.detail_view, name='detail'),
     path('transaction/<int:pk>/invoice/download/', views.download_invoice_pdf, name='download_invoice_pdf'),

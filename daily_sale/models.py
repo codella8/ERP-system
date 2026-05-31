@@ -1,4 +1,3 @@
-# daily_sale/models.py
 from uuid import uuid4
 from decimal import Decimal, ROUND_HALF_UP
 from django.db import models
@@ -15,12 +14,12 @@ class DailySaleTransaction(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
     invoice_number = models.CharField(max_length=64, unique=True, blank=True, db_index=True)
     date = models.DateField(default=timezone.now, db_index=True)
-    due_date = models.DateField(null=True, blank=True)
     transaction_type = models.CharField(max_length=16, choices=TRANSACTION_TYPES, default="sale")
 
     item = models.ForeignKey(Inventory_List, on_delete=models.SET_NULL, null=True, blank=True, related_name="daily_transactions")
     container = models.ForeignKey(Container, on_delete=models.SET_NULL, null=True, blank=True, related_name="daily_transactions")
     customer = models.ForeignKey(UserProfile, on_delete=models.SET_NULL, null=True, blank=True, related_name="daily_transactions")
+    customer_name = models.CharField(max_length=255, blank=True, null=True)  # برای مشتری دستی
     company = models.ForeignKey(Company, on_delete=models.SET_NULL, null=True, blank=True, related_name="daily_transactions")
 
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
@@ -36,7 +35,13 @@ class DailySaleTransaction(models.Model):
     )
 
     subtotal = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0"))
-    tax_amount = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0.00"))
+    tax_amount = models.DecimalField(
+        max_digits=5, 
+        decimal_places=2, 
+        null=True,       
+        blank=True,       
+        default=None      
+    )
     total_amount = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0"))
     balance = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0"))
 
@@ -70,6 +75,7 @@ class DailySaleTransaction(models.Model):
         )
 
     def save(self, *args, **kwargs):
+        # محاسبه مقادیر براساس آیتم‌ها یا تک آیتم
         if self.pk: 
             items = self.items.all()
             if items.exists():
@@ -85,7 +91,7 @@ class DailySaleTransaction(models.Model):
                 self.subtotal = subtotal
                 self.tax_amount = tax_amount
                 self.total_amount = (subtotal - discount_total + tax_amount).quantize(
-                Decimal("0.01"), rounding=ROUND_HALF_UP
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
                 )
                 self.balance = max(self.total_amount - self.advance, Decimal('0'))
                 
@@ -112,7 +118,9 @@ class DailySaleTransaction(models.Model):
             self.balance = amounts["balance"]
             self.payment_status = amounts["payment_status"]
             
-        self.paid = self.advance
+        self.paid = self.advance 
+        
+        # ذخیره نهایی
         super().save(*args, **kwargs)
 
     @property
@@ -218,7 +226,6 @@ class DailySummary(models.Model):
     items_sold = models.PositiveIntegerField(default=0)
     customers_count = models.PositiveIntegerField(default=0)
     
-
     gross_profit = models.DecimalField(max_digits=24, decimal_places=2, default=Decimal("0"))
     total_returns = models.DecimalField(max_digits=24, decimal_places=2, default=Decimal("0"))
     total_tax = models.DecimalField(max_digits=24, decimal_places=2, default=Decimal("0"))
@@ -240,8 +247,8 @@ class DailySummary(models.Model):
 
     class Meta:
         ordering = ["-date"]
-        verbose_name = "Daily Summary "
-        verbose_name_plural = "Daily Summary "
+        verbose_name = "Daily Summary"
+        verbose_name_plural = "Daily Summaries"
 
     def __str__(self):
         return f"Daily Summary {self.date}"

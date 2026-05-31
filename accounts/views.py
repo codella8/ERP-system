@@ -51,10 +51,10 @@ def login_user(request):
                 if user.is_staff:
                     if next_page and '/admin/' in next_page:
                         return redirect(next_page)
-                    return redirect('daily_sale:dashboard')
+                    return redirect('daily_sale:transaction_create')
 
                 else:
-                    if next_page and ('/admin/' in next_page or '/dashboard/' in next_page):
+                    if next_page and ('/admin/' in next_page or '/transaction_create/' in next_page):
                         messages.warning(request, _("Access denied. Redirecting to your profile."))
                         return redirect('daily_sale:customer_detail')
                     return redirect('daily_sale:customer_detail')

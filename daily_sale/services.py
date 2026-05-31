@@ -1,5 +1,5 @@
 # daily_sale/services.py
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 import logging
 from django.db.models import Sum
 
@@ -9,40 +9,58 @@ class CalculationService:
     
     @staticmethod
     def calculate_transaction_amounts(quantity, unit_price, discount, tax_percent, advance):
+        # تبدیل امن مقادیر به Decimal
+        try:
+            qty = Decimal(str(quantity)) if quantity not in [None, ''] else Decimal('1')
+        except:
+            qty = Decimal('1')
+            
+        try:
+            price = Decimal(str(unit_price)) if unit_price not in [None, ''] else Decimal('0')
+        except:
+            price = Decimal('0')
+            
+        try:
+            disc = Decimal(str(discount)) if discount not in [None, ''] else Decimal('0')
+        except:
+            disc = Decimal('0')
+            
+        try:
+            adv = Decimal(str(advance)) if advance not in [None, ''] else Decimal('0')
+        except:
+            adv = Decimal('0')
+        
         # subtotal
-        subtotal = (Decimal(quantity) * Decimal(unit_price)).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
+        subtotal = (qty * price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
         # (net amount = subtotal - discount)
-        taxable_amount = (subtotal - Decimal(discount)).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
+        taxable_amount = (subtotal - disc).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         if taxable_amount < Decimal("0"):
             taxable_amount = Decimal("0")
 
-        # محاسبه مالیات (tax = taxable_amount * tax_rate)
-        tax_rate = Decimal(tax_percent) / Decimal("100")
-        tax_amount = (taxable_amount * tax_rate).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
+        # ========== محاسبه مالیات - اگه tax خالی باشه، صفر ==========
+        if tax_percent in [None, '', 'null']:
+            tax_amount = Decimal('0')
+        else:
+            try:
+                tax_percent_decimal = Decimal(str(tax_percent))
+                tax_rate = tax_percent_decimal / Decimal("100")
+                tax_amount = (taxable_amount * tax_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            except:
+                tax_amount = Decimal('0')
 
-        # محاسبه کل مبلغ (total = taxable_amount + tax_amount)
-        total_amount = (taxable_amount + tax_amount).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
+        # محاسبه کل مبلغ
+        total_amount = (taxable_amount + tax_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-        # محاسبه مانده حساب (balance = max(total - advance, 0))
-        balance = (total_amount - Decimal(advance)).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
+        # محاسبه مانده حساب
+        balance = (total_amount - adv).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         if balance < Decimal("0"):
             balance = Decimal("0")
 
         # تعیین وضعیت پرداخت
         if balance <= Decimal("0") and total_amount > Decimal("0"):
             payment_status = "paid"
-        elif Decimal(advance) > Decimal("0"):
+        elif adv > Decimal("0"):
             payment_status = "partial"
         else:
             payment_status = "unpaid"
@@ -55,26 +73,49 @@ class CalculationService:
             "balance": balance,
             "payment_status": payment_status,
         }
-
     @staticmethod
     def calculate_item_amounts(quantity, unit_price, discount, tax_percent):
         """
         محاسبه مقادیر آیتم (بدون advance)
         """
-        subtotal = (Decimal(quantity) * Decimal(unit_price)).quantize(
+        # تبدیل امن مقادیر به Decimal
+        try:
+            qty = Decimal(str(quantity)) if quantity not in [None, ''] else Decimal('1')
+        except (InvalidOperation, TypeError):
+            qty = Decimal('1')
+            
+        try:
+            price = Decimal(str(unit_price)) if unit_price not in [None, ''] else Decimal('0')
+        except (InvalidOperation, TypeError):
+            price = Decimal('0')
+            
+        try:
+            disc = Decimal(str(discount)) if discount not in [None, ''] else Decimal('0')
+        except (InvalidOperation, TypeError):
+            disc = Decimal('0')
+        
+        subtotal = (qty * price).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP
         )
 
-        taxable = (subtotal - Decimal(discount)).quantize(
+        taxable = (subtotal - disc).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP
         )
         if taxable < Decimal("0"):
             taxable = Decimal("0")
 
-        tax_rate = Decimal(tax_percent) / Decimal("100")
-        tax_amount = (taxable * tax_rate).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
+        # ========== محاسبه مالیات - اگر tax خالی باشه، صفر در نظر گرفته میشه ==========
+        if tax_percent in [None, '', '0', '0.0', 0]:
+            tax_amount = Decimal('0')
+        else:
+            try:
+                tax_percent_decimal = Decimal(str(tax_percent))
+                tax_rate = tax_percent_decimal / Decimal("100")
+                tax_amount = (taxable * tax_rate).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+            except (InvalidOperation, TypeError, ZeroDivisionError):
+                tax_amount = Decimal('0')
 
         total_amount = (taxable + tax_amount).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP
@@ -101,7 +142,7 @@ class CalculationService:
                 tax_percent=tax_percent
             )
             subtotal += item_calc["subtotal"]
-            discount_total += Decimal(item.get("discount", 0))
+            discount_total += Decimal(str(item.get("discount", 0)))
             tax_amount_total += item_calc["tax_amount"]
 
         net_amount = max(subtotal - discount_total, Decimal("0"))
@@ -109,10 +150,16 @@ class CalculationService:
             Decimal("0.01"), rounding=ROUND_HALF_UP
         )
 
-        balance = max(total_amount - Decimal(advance), Decimal("0"))
+        try:
+            adv = Decimal(str(advance)) if advance not in [None, ''] else Decimal('0')
+        except (InvalidOperation, TypeError):
+            adv = Decimal('0')
+
+        balance = max(total_amount - adv, Decimal("0"))
+        
         if balance <= Decimal("0") and total_amount > Decimal("0"):
             payment_status = "paid"
-        elif Decimal(advance) > Decimal("0"):
+        elif adv > Decimal("0"):
             payment_status = "partial"
         else:
             payment_status = "unpaid"
@@ -142,8 +189,7 @@ class SummaryService:
             total=Sum('total_amount')
         )['total'] or Decimal('0')
         
-        # ================ محاسبه معوقات (بر اساس balance) ================
-        # تراکنش‌هایی که balance > 0 دارند (بدهکار هستند)
+        # ================ محاسبه معوقات ================
         outstanding_qs = queryset.filter(balance__gt=0)
         outstanding_total = outstanding_qs.aggregate(
             total=Sum('balance')
@@ -167,7 +213,6 @@ class SummaryService:
             )['total'] or Decimal('0')
             avg_transaction = total_amount_sum / total_count
         
-        # لاگ برای دیباگ
         logger.info("=" * 50)
         logger.info("📊 SummaryService.get_transaction_stats:")
         logger.info(f"   - Total Sales: {sales_total:,.2f} AED")

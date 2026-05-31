@@ -9,24 +9,22 @@ class DailySaleTransactionForm(forms.ModelForm):
     class Meta:
         model = DailySaleTransaction
         fields = [
-            "invoice_number",
             "date",
-            "due_date",
-            "transaction_type",
-            "company",
+            "invoice_number",
+            "description",
+            "paid",
             "customer",
             "advance",
             "tax",
             "note",
+            "customer_name",
         ]
         widgets = {
             "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
-            "due_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
             "invoice_number": forms.TextInput(attrs={
                 "class": "form-control",
                 "placeholder": "Auto-generated if empty"
             }),
-            "transaction_type": forms.Select(attrs={"class": "form-select"}),
             "company": forms.Select(attrs={"class": "form-select"}),
             "customer": forms.Select(attrs={"class": "form-select"}),
             "advance": forms.NumberInput(attrs={
@@ -45,17 +43,15 @@ class DailySaleTransactionForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         self.fields["advance"].required = False
-        self.fields["tax"].required = False
+        self.fields["tax"].initial = None
 
         self.fields["advance"].initial = Decimal("0.00")
         self.fields["tax"].initial = Decimal("5.00")
 
         # AJAX
-        self.fields["company"].queryset = Company.objects.none()
         self.fields["customer"].queryset = UserProfile.objects.none()
 
         if self.is_bound:
-            self.fields["company"].queryset = Company.objects.all()
             self.fields["customer"].queryset = UserProfile.objects.all()
 
     def clean(self):

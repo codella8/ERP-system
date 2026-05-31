@@ -1,364 +1,536 @@
 # containers/views.py
-from django.shortcuts import render, get_object_or_404
-from django.views.generic import ListView, DetailView, TemplateView,  CreateView
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, F, Count, DecimalField, Max, Min, Avg
+from django.contrib import messages
+from django.db.models import Q, Sum, F
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST, require_GET
+from django.utils import timezone
+from datetime import datetime
+from decimal import Decimal
+import json
+import logging
+
+from .models import Container, Inventory_List
+
+logger = logging.getLogger(__name__)
+
+
+@login_required
+def container_list(request):
+    """صفحه اصلی لیست کانتینرها - مثل Daily Sale"""
+    # دریافت همه کانتینرها
+    containers = Container.objects.all().order_by('-arrival_date', '-created_at')
+    
+    # جستجو
+    search = request.GET.get('search', '')
+    if search:
+        containers = containers.filter(
+            Q(container_number__icontains=search) |
+            Q(supplier__icontains=search) |
+            Q(code__icontains=search)
+        )
+    
+    # فیلتر وضعیت
+    status = request.GET.get('status', '')
+    if status:
+        containers = containers.filter(transport_status=status)
+    
+    # فیلتر تاریخ
+    date_from = request.GET.get('date_from', '')
+    date_to = request.GET.get('date_to', '')
+    if date_from:
+        containers = containers.filter(arrival_date__gte=date_from)
+    if date_to:
+        containers = containers.filter(arrival_date__lte=date_to)
+    
+    # آمار برای کارت‌ها
+    total_containers = containers.count()
+    in_transit_count = containers.filter(transport_status='in_transit').count()
+    arrived_count = containers.filter(transport_status='arrived').count()
+    awaiting_count = containers.filter(transport_status='awaiting').count()
+    
+    # محاسبه总值
+    total_items = 0
+    total_value = 0
+    total_sales = 0
+    total_expenses = 0
+    
+    for container in containers:
+        if hasattr(container, 'inventory_items'):
+            # مجموع آیتم‌ها
+            item_total = container.inventory_items.aggregate(total=Sum('in_stock_qty'))['total'] or 0
+            total_items += item_total
+            
+            # ارزش کل موجودی
+            total_value += container.total_inventory_value
+        
+        # مجموع فروش و هزینه
+        total_sales += container.total_sales or 0
+        total_expenses += container.total_expenses or 0
+    
+    context = {
+        'containers': containers,
+        'total_containers': total_containers,
+        'in_transit_count': in_transit_count,
+        'arrived_count': arrived_count,
+        'awaiting_count': awaiting_count,
+        'total_items': total_items,
+        'total_value': total_value,
+        'total_sales': total_sales,
+        'total_expenses': total_expenses,
+        'search': search,
+        'status_filter': status,
+        'date_from': date_from,
+        'date_to': date_to,
+    }
+    
+    return render(request, 'container/container_list.html', context)
+
+
+@login_required
+@require_POST
+def container_create_ajax(request):
+    """ایجاد کانتینر جدید - ذخیره دائمی"""
+    try:
+        print("Creating container with data:", request.POST)  # برای دیباگ
+        
+        container = Container.objects.create(
+            container_number=request.POST.get('container_number'),
+            supplier=request.POST.get('supplier', ''),
+            code=request.POST.get('code', ''),
+            transport_status=request.POST.get('transport_status', 'awaiting'),
+            arrival_date=request.POST.get('arrival_date') or None,
+            total_sales=Decimal(request.POST.get('total_sales', '0')),
+            total_expenses=Decimal(request.POST.get('total_expenses', '0')),
+        )
+        
+        print(f"Container created with ID: {container.id}")
+        
+        return JsonResponse({
+            'success': True, 
+            'id': str(container.id),
+            'container_number': container.container_number,
+            'message': 'کانتینر با موفقیت ایجاد شد'
+        })
+        
+    except Exception as e:
+        print(f"Error creating container: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def container_update_ajax(request, pk):
+    """ویرایش کانتینر - ذخیره دائمی در دیتابیس"""
+    try:
+        container = get_object_or_404(Container, pk=pk)
+        data = json.loads(request.body)
+        
+        print(f"Updating container {pk} with data:", data)  # برای دیباگ
+        
+        # فیلدهای قابل ویرایش
+        editable_fields = [
+            'container_number', 'supplier', 'code', 
+            'transport_status', 'total_sales', 'total_expenses'
+        ]
+        
+        changes_made = False
+        
+        for field, value in data.items():
+            if field in editable_fields and hasattr(container, field):
+                if field == 'arrival_date' and value:
+                    try:
+                        # تبدیل تاریخ به فرمت درست
+                        container.arrival_date = datetime.strptime(value, '%Y-%m-%d').date()
+                        changes_made = True
+                    except ValueError as e:
+                        print(f"Date error: {e}")
+                        
+                elif field in ['total_sales', 'total_expenses'] and value:
+                    try:
+                        # تبدیل به Decimal
+                        setattr(container, field, Decimal(str(value)))
+                        changes_made = True
+                    except:
+                        pass
+                        
+                elif value is not None:
+                    # فیلدهای متنی
+                    setattr(container, field, value)
+                    changes_made = True
+        
+        if changes_made:
+            container.save()  # ذخیره در دیتابیس
+            print(f"Container {pk} saved successfully")
+            
+            # محاسبه سود خالص
+            net_value = (container.total_sales or 0) - (container.total_expenses or 0)
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'تغییرات با موفقیت ذخیره شد',
+                'id': str(container.id),
+                'container_number': container.container_number,
+                'supplier': container.supplier,
+                'code': container.code,
+                'transport_status': container.transport_status,
+                'total_sales': float(container.total_sales or 0),
+                'total_expenses': float(container.total_expenses or 0),
+                'net_value': float(net_value),
+                'arrival_date': container.arrival_date.strftime('%Y-%m-%d') if container.arrival_date else None,
+            })
+        else:
+            return JsonResponse({
+                'success': True,
+                'message': 'No changes made',
+            })
+        
+    except Container.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'کانتینر یافت نشد'}, status=404)
+    except Exception as e:
+        print(f"Error updating container: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def container_detail(request, pk):
+    """صفحه جزئیات کانتینر"""
+    container = get_object_or_404(Container, pk=pk)
+    
+    # محاسبات برای صفحه جزئیات
+    inventory_items = container.inventory_items.all()
+    total_items = inventory_items.count()
+    total_qty = sum(item.in_stock_qty for item in inventory_items)
+    total_value = container.total_inventory_value
+    
+    context = {
+        'container': container,
+        'inventory_items': inventory_items,
+        'total_items': total_items,
+        'total_qty': total_qty,
+        'total_value': total_value,
+    }
+    
+    return render(request, 'container/container_detail.html', context)
+
+
+
+@login_required
+def inventory_list(request):
+    """صفحه اصلی لیست موجودی - Excel-like view"""
+    # دریافت همه آیتم‌های موجودی
+    items = Inventory_List.objects.select_related('container').all().order_by('-created_at')
+    
+    # جستجو
+    search = request.GET.get('search', '')
+    if search:
+        items = items.filter(
+            Q(product_name__icontains=search) |
+            Q(code__icontains=search) |
+            Q(container__container_number__icontains=search)
+        )
+    
+    # فیلتر بر اساس کانتینر
+    container_id = request.GET.get('container', '')
+    if container_id:
+        items = items.filter(container_id=container_id)
+    
+    # فیلتر بر اساس وضعیت
+    status = request.GET.get('status', '')
+    if status:
+        items = items.filter(status=status)
+    
+    # آمار برای کارت‌ها
+    total_items = items.count()
+    total_qty = items.aggregate(total=Sum('in_stock_qty'))['total'] or 0
+    total_sold_qty = items.aggregate(total=Sum('total_sold_qty'))['total'] or 0
+    total_value = sum(item.total_value for item in items)
+    
+    # آمار وضعیت‌ها
+    available_count = items.filter(status='available').count()
+    partial_count = items.filter(status='partial').count()
+    sold_out_count = items.filter(status='sold_out').count()
+    
+    # لیست کانتینرها برای فیلتر
+    containers = Container.objects.all().order_by('container_number')
+    
+    context = {
+        'items': items,
+        'total_items': total_items,
+        'total_qty': total_qty,
+        'total_sold_qty': total_sold_qty,
+        'total_value': total_value,
+        'available_count': available_count,
+        'partial_count': partial_count,
+        'sold_out_count': sold_out_count,
+        'containers': containers,
+        'search': search,
+        'container_filter': container_id,
+        'status_filter': status,
+    }
+    
+    return render(request, 'container/inventory_list.html', context)
+
+
+@login_required
+@require_POST
+def inventory_create_ajax(request):
+    """ایجاد آیتم جدید در موجودی"""
+    try:
+        container_id = request.POST.get('container')
+        container = None
+        if container_id:
+            container = get_object_or_404(Container, id=container_id)
+        
+        item = Inventory_List.objects.create(
+            container=container,
+            product_name=request.POST.get('product_name'),
+            code=request.POST.get('code', ''),
+            make=request.POST.get('make', ''),
+            model=request.POST.get('model', ''),
+            in_stock_qty=Decimal(request.POST.get('in_stock_qty', '0')),
+            unit_price=Decimal(request.POST.get('unit_price', '0')),
+            price=Decimal(request.POST.get('price', '0')),
+            description=request.POST.get('description', ''),
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'id': str(item.id),
+            'message': 'Item created successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error creating inventory item: {str(e)}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def inventory_update_ajax(request, pk):
+    """ویرایش آیتم موجودی"""
+    try:
+        item = get_object_or_404(Inventory_List, pk=pk)
+        data = json.loads(request.body)
+        
+        # فیلدهای قابل ویرایش
+        editable_fields = [
+            'product_name', 'code', 'make', 'model',
+            'in_stock_qty', 'unit_price', 'price',
+            'total_sold_qty', 'description'
+        ]
+        
+        for field, value in data.items():
+            if field in editable_fields and hasattr(item, field):
+                if field in ['in_stock_qty', 'unit_price', 'price', 'total_sold_qty']:
+                    try:
+                        setattr(item, field, Decimal(str(value)))
+                    except:
+                        pass
+                else:
+                    setattr(item, field, value)
+        
+        item.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Item updated successfully',
+            'id': str(item.id),
+            'product_name': item.product_name,
+            'code': item.code,
+            'in_stock_qty': float(item.in_stock_qty),
+            'total_sold_qty': float(item.total_sold_qty),
+            'in_stock': float(item.in_stock),
+            'unit_price': float(item.unit_price),
+            'total_value': float(item.total_value),
+            'status': item.status,
+        })
+        
+    except Inventory_List.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Item not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error updating inventory item: {str(e)}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def inventory_detail(request, pk):
+    """صفحه جزئیات آیتم موجودی"""
+    item = get_object_or_404(Inventory_List, pk=pk)
+    context = {'item': item}
+    return render(request, 'container/inventory_detail.html', context)
+
+
+@login_required
+@require_POST
+def inventory_sell_ajax(request, pk):
+    """ثبت فروش برای آیتم"""
+    try:
+        item = get_object_or_404(Inventory_List, pk=pk)
+        quantity = Decimal(request.POST.get('quantity', '0'))
+        
+        if quantity <= 0:
+            return JsonResponse({'success': False, 'error': 'Quantity must be positive'})
+        
+        if quantity > item.in_stock:
+            return JsonResponse({'success': False, 'error': f'Only {item.in_stock} items available'})
+        
+        # بروزرسانی موجودی
+        item.total_sold_qty += quantity
+        if request.POST.get('sold_price'):
+            item.sold_price = Decimal(request.POST.get('sold_price'))
+        
+        item.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'{quantity} items sold',
+            'in_stock': float(item.in_stock),
+            'total_sold_qty': float(item.total_sold_qty),
+            'status': item.status,
+        })
+        
+    except Inventory_List.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Item not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error selling item: {str(e)}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    
+# containers/views.py
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Sum, Count, Q, F
 from django.utils import timezone
 from datetime import datetime, timedelta
-from .models import Saraf, Container, Inventory_List
-from . import report
-from django.urls import reverse_lazy
-from django import forms
-from django.db.models.functions import Coalesce
-from decimal import Decimal
-from collections import defaultdict
+from .models import Container, Inventory_List, ContainerTransaction
+import json
 
-class CompanyAccessMixin:
-    def get_company(self):
-        user = getattr(self.request, "user", None)
-        if not user or not user.is_authenticated:
-            return None
-        profile = getattr(user, "profile", None)
-        if not profile:
-            return None
-        return profile.company
 
-class SarafListView(LoginRequiredMixin, CompanyAccessMixin, ListView):
-    model = Saraf
-    template_name = "container/saraf_list.html"
-    context_object_name = "sarafs"
-    paginate_by = 25
-
-    def get_queryset(self):
-        qs = Saraf.objects.select_related("user")
-        company = self.get_company()
-        
-        if company:
-            qs = qs.filter(user__company=company)
-        return qs.annotate(
-            total_received=Coalesce(
-                Sum("transactions__received_from_saraf"), 
-                Decimal('0'),
-                output_field=DecimalField(max_digits=20, decimal_places=2)
-            ),
-            total_paid=Coalesce(
-                Sum("transactions__paid_by_company"), 
-                Decimal('0'),
-                output_field=DecimalField(max_digits=20, decimal_places=2)
-            ),
-        ).annotate(
-            balance=F("total_received") - F("total_paid")
-        ).order_by("-balance")
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        sarafs = context['sarafs']
-        all_sarafs = self.get_queryset()
-        
-        total_received_sum = all_sarafs.aggregate(
-            total=Coalesce(Sum('total_received'), Decimal('0'))
-        )['total']
-        
-        total_paid_sum = all_sarafs.aggregate(
-            total=Coalesce(Sum('total_paid'), Decimal('0'))
-        )['total']
-        
-        net_balance_sum = total_received_sum - total_paid_sum
-        creditors_count = all_sarafs.filter(balance__gt=0).count()
-        debtors_count = all_sarafs.filter(balance__lt=0).count()
-        balanced_count = all_sarafs.filter(balance=0).count()
-        context.update({
-            'total_received_sum': total_received_sum,
-            'total_paid_sum': total_paid_sum,
-            'net_balance_sum': net_balance_sum,
-            'creditors_count': creditors_count,
-            'debtors_count': debtors_count,
-            'balanced_count': balanced_count,
-            'total_count': all_sarafs.count(),
-            'page_title': 'Sarafs Management',
-            'page_subtitle': 'Financial accounts overview',
-        })
-        
-        return context
-
-class SarafDetailView(LoginRequiredMixin, CompanyAccessMixin, DetailView):
-    model = Saraf
-    template_name = "container/saraf_detail.html"
-    context_object_name = "saraf"
-    pk_url_kwarg = "saraf_id"
-
-    def get_queryset(self):
-        qs = super().get_queryset().select_related(
-            "user",
-            "user__user",
-            "user__company"
-        )
-        company = self.get_company()
-        if company:
-            qs = qs.filter(user__company=company)
-        return qs
-
-    def get_transaction_summary(self, saraf):
-        transactions = saraf.transactions.all()
-        summary = transactions.aggregate(
-            total_received=Coalesce(Sum('received_from_saraf'), Decimal('0')),
-            total_paid=Coalesce(Sum('paid_by_company'), Decimal('0')),
-            avg_received=Coalesce(Avg('received_from_saraf'), Decimal('0')),
-            avg_paid=Coalesce(Avg('paid_by_company'), Decimal('0')),
-            max_received=Coalesce(Max('received_from_saraf'), Decimal('0')),
-            max_paid=Coalesce(Max('paid_by_company'), Decimal('0')),
-            transaction_count=Count('id'),
-            first_transaction=Min('transaction_time'),
-            last_transaction=Max('transaction_time')
-        )
-        summary['balance'] = summary['total_received'] - summary['total_paid']
-        
-        return summary
-
-    def get_currency_breakdown(self, saraf):
-        transactions = saraf.transactions.all()
-        currency_data = {}
-        for currency in ['usd', 'eur', 'aed']:
-            currency_trans = transactions.filter(currency=currency)
-            
-            if currency_trans.exists():
-                stats = currency_trans.aggregate(
-                    total_received=Coalesce(Sum('received_from_saraf'), Decimal('0')),
-                    total_paid=Coalesce(Sum('paid_by_company'), Decimal('0')),
-                    count=Count('id'),
-                    avg_amount=Coalesce(Avg('received_from_saraf'), Decimal('0'))
-                )
-                
-                stats['balance'] = stats['total_received'] - stats['total_paid']
-        return currency_data
-
-    def get_monthly_summary(self, saraf):
-        current_year = timezone.now().year
-        transactions = saraf.transactions.filter(
-            transaction_time__year=current_year
-        )
-        
-        monthly_data = []
-        for month in range(1, 13):
-            month_trans = transactions.filter(
-                transaction_time__month=month
-            )
-            
-            month_stats = month_trans.aggregate(
-                received=Coalesce(Sum('received_from_saraf'), Decimal('0')),
-                paid=Coalesce(Sum('paid_by_company'), Decimal('0')),
-                count=Count('id')
-            )
-            
-            month_stats['balance'] = month_stats['received'] - month_stats['paid']
-            month_stats['month_name'] = timezone.datetime(current_year, month, 1).strftime('%b')
-            monthly_data.append(month_stats)
-        return monthly_data
-
-    def get_container_summary(self, saraf):
-        transactions = saraf.transactions.filter(
-            container__isnull=False
-        ).select_related('container')
-        
-        containers = defaultdict(lambda: {
-            'received': Decimal('0'),
-            'paid': Decimal('0'),
-            'count': 0,
-            'last_transaction': None
-        })
-        
-        for tx in transactions:
-            container = tx.container
-            if container:
-                containers[container.id]['container'] = container
-                containers[container.id]['received'] += tx.received_from_saraf
-                containers[container.id]['paid'] += tx.paid_by_company
-                containers[container.id]['count'] += 1
-                containers[container.id]['balance'] = containers[container.id]['received'] - containers[container.id]['paid']
-                
-                if not containers[container.id]['last_transaction'] or \
-                   tx.transaction_time > containers[container.id]['last_transaction']:
-                    containers[container.id]['last_transaction'] = tx.transaction_time
-        
-        return list(containers.values())
-
-    def get_recent_activity(self, saraf, days=30):
-        cutoff_date = timezone.now() - timedelta(days=days)
-        return saraf.transactions.filter(
-            transaction_time__gte=cutoff_date
-        ).select_related('container').order_by('-transaction_time')
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        saraf = self.object
-        date_filter = self.request.GET.get('date_filter', 'all')
-        start_date = self.request.GET.get('start_date')
-        end_date = self.request.GET.get('end_date')
-        transactions = saraf.transactions.select_related("container").all()
-        
-        if date_filter == 'today':
-            today = timezone.now().date()
-            transactions = transactions.filter(transaction_time__date=today)
-        elif date_filter == 'week':
-            week_ago = timezone.now() - timedelta(days=7)
-            transactions = transactions.filter(transaction_time__gte=week_ago)
-        elif date_filter == 'month':
-            month_ago = timezone.now() - timedelta(days=30)
-            transactions = transactions.filter(transaction_time__gte=month_ago)
-        elif date_filter == 'year':
-            year_ago = timezone.now() - timedelta(days=365)
-            transactions = transactions.filter(transaction_time__gte=year_ago)
-        elif start_date and end_date:
-            transactions = transactions.filter(
-                transaction_time__date__range=[start_date, end_date]
-            )
-        financial_summary = self.get_transaction_summary(saraf)
-        monthly_summary = self.get_monthly_summary(saraf)
-        container_summary = self.get_container_summary(saraf)
-        recent_activity = self.get_recent_activity(saraf, 30)
-        user_info = {}
-        if saraf.user:
-            user_info = {
-                'full_name': saraf.user.full_name,
-                'phone': saraf.user.phone,
-                'email': saraf.user.email,
-                'address': saraf.user.address,
-                'national_id': saraf.user.national_id,
-                'company_name': saraf.user.company_name if saraf.user.company else None,
-                'date_joined': saraf.user.user.date_joined if saraf.user.user else None,
-                'last_login': saraf.user.user.last_login if saraf.user.user else None,
-            }
-
-        status_info = {
-            'is_active': saraf.is_active,
-            'created_at': saraf.created_at,
-            'updated_at': saraf.updated_at,
-            'status': 'Creditor' if financial_summary['balance'] > 0 else \
-                'Debtor' if financial_summary['balance'] < 0 else 'Balanced',
-            'status_class': 'success' if financial_summary['balance'] > 0 else \
-                'danger' if financial_summary['balance'] < 0 else 'secondary'
-        }
-        ctx.update({
-            'transactions': transactions.order_by('-transaction_time')[:100],
-            'total_transactions_count': transactions.count(),
-            'financial_summary': financial_summary,
-            'monthly_summary': monthly_summary,
-            'container_summary': container_summary[:10],
-            'recent_activity': recent_activity[:20],
-            'user_info': user_info,
-            'status_info': status_info,
-            'date_filter': date_filter,
-            'start_date': start_date,
-            'end_date': end_date,
-            'today': timezone.now().date(),
-            'page_title': f'Saraf Details - {user_info.get("full_name", "Unknown")}',
-            'page_subtitle': f'ID: {saraf.id} | Balance: ${financial_summary["balance"]:,.0f}',
-        })
-        
-        return ctx
-
-class ContainerListView(LoginRequiredMixin, CompanyAccessMixin, ListView):
-    model = Container
-    template_name = "container/container_list.html"
-    context_object_name = "containers"
-    paginate_by = 25
-    
-    def get_queryset(self):
-        qs = Container.objects.select_related("company")
-        company = self.get_company()
-        if company:
-            qs = qs.filter(company=company)
-        qs = qs.annotate(
-            products_count=Count('inventory_items', distinct=True), 
-            total_in_stock_qty=Sum('inventory_items__in_stock_qty'),
-            total_inventory_value=Sum(F('inventory_items__in_stock_qty') * F('inventory_items__unit_price'))
-        )
-        return qs.order_by('-created_at')
- 
-class ContainerDetailView(LoginRequiredMixin, CompanyAccessMixin, DetailView):
-    model = Container
-    template_name = "container/container_detail.html"
-    context_object_name = "container"
-
-    def get_queryset(self):
-        qs = Container.objects.select_related("company")
-        company = self.get_company()
-        if company:
-            qs = qs.filter(company=company)
-        return qs
-    
 @login_required
-def container_financial_report_view(request, container_id):
-    container = get_object_or_404(Container, id=container_id)
-    start = request.GET.get("start_date")
-    end = request.GET.get("end_date")
+def container_daily_report(request):
+    """گزارش خلاصه روزانه کانتینرها - مطابق عکس کارفرما"""
     
-    if start:
-        try:
-            start_parsed = datetime.fromisoformat(start)
-        except ValueError:
-            start_parsed = None
-    else:
-        start_parsed = None
-    if end:
-        try:
-            end_parsed = datetime.fromisoformat(end)
-        except ValueError:
-            end_parsed = None
-    else:
-        end_parsed = None
-
-    fin = report.container_financial_summary(container_id=container_id, start_date=start_parsed, end_date=end_parsed)
-    transactions = container.transactions.select_related("customer", "company").order_by("-created_at")
-
+    # دریافت تاریخ از کاربر یا پیش‌فرض امروز
+    selected_date = request.GET.get('date', timezone.now().date().strftime('%Y-%m-%d'))
+    
+    try:
+        report_date = datetime.strptime(selected_date, '%Y-%m-%d').date()
+    except ValueError:
+        report_date = timezone.now().date()
+    
+    # ========== گزارش روزانه ==========
+    # تمام تراکنش‌های این روز
+    daily_transactions = ContainerTransaction.objects.filter(
+        created_at__date=report_date
+    ).select_related('container')
+    
+    # خلاصه بر اساس کد محصول
+    daily_summary = daily_transactions.values(
+        'product'
+    ).annotate(
+        total_sales=Sum('total_price'),
+        total_qty=Sum('quantity'),
+        transaction_count=Count('id')
+    ).order_by('-total_sales')
+    
+    # ========== آمار کلی روز ==========
+    total_sales = daily_transactions.aggregate(
+        total=Sum('total_price')
+    )['total'] or 0
+    
+    total_transactions = daily_transactions.count()
+    total_items_sold = daily_transactions.aggregate(
+        total=Sum('quantity')
+    )['total'] or 0
+    
+    # ========== محاسبه Not Sold (آیتم‌های فروش نرفته) ==========
+    # تمام آیتم‌های موجود در این روز
+    inventory_items = Inventory_List.objects.filter(
+        created_at__date=report_date
+    )
+    
+    not_sold_count = inventory_items.filter(
+        total_sold_qty=0
+    ).count()
+    
+    # ========== داده برای نمودار ==========
+    chart_labels = []
+    chart_data = []
+    
+    for item in daily_summary[:10]:  # ۱۰ مورد اول
+        chart_labels.append(item['product'] or 'No Code')
+        chart_data.append(float(item['total_sales'] or 0))
+    
+    # ========== جستجو ==========
+    search_query = request.GET.get('search', '')
+    if search_query:
+        daily_summary = [
+            item for item in daily_summary 
+            if search_query.lower() in (item['product'] or '').lower()
+        ]
+    
     context = {
-        "container": container,
-        "financial_summary": fin,
-        "transactions": transactions,
+        'report_date': report_date,
+        'daily_summary': daily_summary,
+        'total_sales': total_sales,
+        'total_transactions': total_transactions,
+        'total_items_sold': total_items_sold,
+        'not_sold_count': not_sold_count,
+        'chart_labels': json.dumps(chart_labels),
+        'chart_data': json.dumps(chart_data),
+        'search_query': search_query,
+        
+        # تاریخ‌های قبل و بعد برای ناوبری
+        'prev_date': (report_date - timedelta(days=1)).strftime('%Y-%m-%d'),
+        'next_date': (report_date + timedelta(days=1)).strftime('%Y-%m-%d'),
+        'today': timezone.now().date().strftime('%Y-%m-%d'),
     }
-    return render(request, "container/container_financial_report.html", context)
+    
+    return render(request, 'container/daily_report.html', context)
 
 
 @login_required
-def total_container_transactions_report_view(request):
-    company = getattr(request.user.profile, "company", None)
-    start = request.GET.get("start_date")
-    end = request.GET.get("end_date")
-    data = report.total_container_transactions_report(company_id=(company.id if company else None), start_date=start, end_date=end)
-    return render(request, "container/container_transactions_report.html", {"report": data})
-
-
-class ContainersAdminOverview(LoginRequiredMixin, TemplateView, CompanyAccessMixin):
-    template_name = "container/admin_overview.html"
-
-    def dispatch(self, request, *args, **kwargs):
-        if not (request.user.is_staff or request.user.is_superuser):
-            return render(request, "403.html", status=403)
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        company = self.get_company()
-        ctx.update(report.saraf_overview_for_admin(company_id=(company.id if company else None)))
-        return ctx
-
-class InventoryCreateForm(forms.ModelForm):
-    class Meta:
-        model = Inventory_List
-        fields = ["container", "code", "product_name", "make", "model", "in_stock_qty", "unit_price", "price", "description"]
-
-class InventoryCreateView(LoginRequiredMixin, CreateView):
-    model = Inventory_List
-    form_class = InventoryCreateForm
-    template_name = "container/inventory_add.html"
-    success_url = reverse_lazy("containers:list")
-
-    def get_form(self, *args, **kwargs):
-        form = super().get_form(*args, **kwargs)
-        company = getattr(self.request.user.profile, "company", None)
-        if company:
-            form.fields["container"].queryset = Container.objects.filter(company=company)
-        else:
-            form.fields["container"].queryset = Container.objects.all()
-        return form
+def container_monthly_summary(request):
+    """گزارش خلاصه ماهانه"""
+    
+    # دریافت ماه و سال از کاربر
+    year = int(request.GET.get('year', timezone.now().year))
+    month = int(request.GET.get('month', timezone.now().month))
+    
+    start_date = datetime(year, month, 1).date()
+    if month == 12:
+        end_date = datetime(year + 1, 1, 1).date() - timedelta(days=1)
+    else:
+        end_date = datetime(year, month + 1, 1).date() - timedelta(days=1)
+    
+    # تراکنش‌های این ماه
+    monthly_transactions = ContainerTransaction.objects.filter(
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date
+    )
+    
+    # خلاصه روزانه
+    daily_report = monthly_transactions.values(
+        'created_at__date'
+    ).annotate(
+        total_sales=Sum('total_price'),
+        transaction_count=Count('id'),
+        items_sold=Sum('quantity')
+    ).order_by('created_at__date')
+    
+    context = {
+        'year': year,
+        'month': month,
+        'month_name': start_date.strftime('%B'),
+        'daily_report': daily_report,
+        'total_sales': monthly_transactions.aggregate(total=Sum('total_price'))['total'] or 0,
+        'total_transactions': monthly_transactions.count(),
+    }
+    
+    return render(request, 'container/monthly_report.html', context)

@@ -4,7 +4,7 @@ import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from functools import wraps
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 from django.db import transaction as db_transaction
 from django.contrib import messages
 from django.template.loader import render_to_string
@@ -52,70 +52,6 @@ def admin_required(view_func):
             return redirect('accounts:home')
         return view_func(request, *args, **kwargs)
     return _wrapped_view
-
-@login_required
-@admin_required
-def dashboard(request):
-    try:
-        total_sales = DailySaleTransaction.objects.count()
-    except:
-        total_sales = 0 
-    
-    try:
-        total_containers = Container.objects.count()
-    except:
-        total_containers = 0
-    
-    try:
-        total_users = User.objects.count()
-    except:
-        total_users = 0
-    
-    quick_stats = {
-        'total_sales': total_sales,
-        'total_containers': total_containers,
-        'total_users': total_users,
-    }
-    
-    apps = [
-        {
-            'name': 'Daily Sales', 
-            'url': 'daily_sale:transaction_list/',
-            'icon': 'fas fa-shopping-cart', 
-            'description': 'Daily transactions and sales management'
-        },
-        {
-            'name': 'Containers', 
-            'url': 'containers:list',
-            'icon': 'fas fa-shipping-fast', 
-            'description': 'Container and shipping management'
-        },
-        {
-            'name': 'Expenses', 
-            'url': 'expenses:expense_list/', 
-            'icon': 'fas fa-money-bill-wave', 
-            'description': 'Expense tracking and management'
-        },
-        {
-            'name': 'Employees', 
-            'url': 'employee:list/', 
-            'icon': 'fas fa-users',  
-            'description': 'Employee and staff management'
-        },
-
-        {
-            'name': 'Reports', 
-            'url': '#',  
-            'icon': 'fas fa-file-alt', 
-            'description': 'Comprehensive reporting system'
-        },
-    ]
-
-    context = {
-        'quick_stats': quick_stats,
-        'apps': apps
-    }
-    return render(request, 'daily_sale/dashboard.html', context)
 
 @login_required
 def customer_detail(request, customer_id=None):
@@ -211,8 +147,49 @@ def transaction_create(request):
                 transaction.created_by = request.user
                 advance = Decimal(request.POST.get("advance", "0") or "0")
                 transaction.advance = advance
+                
+                tax_value = request.POST.get("tax")
+                if tax_value in [None, '', 'null']:
+                    transaction.tax = None 
+                else:
+                    try:
+                        transaction.tax = Decimal(str(tax_value))
+                    except:
+                        transaction.tax = None
+
+                customer_name = request.POST.get("customer_name", "").strip()
+                if customer_name:
+                    transaction.customer_name = customer_name
+                    
+                    # تلاش برای پیدا کردن یا ساختن UserProfile
+                    from accounts.models import UserProfile
+                    from django.contrib.auth.models import User
+                    
+                    # اول ببینیم آیا مشتری با این نام وجود داره
+                    # اینجا می‌تونی منطق خودت رو بذاری
+                    # مثلاً با phone یا email جستجو کنی
+                    
+                    # برای سادگی، از یک مشتری پیش‌فرض استفاده می‌کنیم
+                    # یا می‌تونی یه مشتری جدید بسازی
+                    try:
+                        # سعی کن مشتری با نام مشابه پیدا کنی
+                        # این رو بر اساس نیاز خودت تغییر بده
+                        customer = UserProfile.objects.filter(
+                            user__username__icontains=customer_name
+                        ).first()
+                        
+                        if customer:
+                            transaction.customer = customer
+                        else:
+                            # اگه پیدا نکردی، مشتری جدید بساز
+                            # این رو هم بر اساس نیاز خودت تغییر بده
+                            pass
+                    except:
+                        pass
+                
                 transaction.save()
                 logger.info(f"Transaction created: {transaction.id}")
+                
                 items_json = request.POST.get("items_data", "[]")
                 items_created = 0
                 items_list = []
@@ -605,6 +582,236 @@ def transaction_delete(request, pk):
         messages.error(request, "Error deleting transaction!")
     
     return redirect("daily_sale:transaction_list")
+
+@login_required
+@require_POST
+def transaction_update_ajax(request, pk):
+    """
+    به‌روزرسانی تراکنش با AJAX (برای ویرایش درون جدول)
+    """
+    try:
+        transaction = get_object_or_404(DailySaleTransaction, pk=pk)
+        
+        # دریافت داده‌ها
+        data = request.POST.dict()
+        
+        # به‌روزرسانی فیلدها
+        changes_made = False
+        
+        # تاریخ
+        if 'date' in data and data['date']:
+            transaction.date = data['date']
+            changes_made = True
+            
+        # کد/کانتینر (جستجوی Container با نام)
+        if 'container' in data and data['container']:  # اینجا از data استفاده کن نه changes
+            try:
+                from containers.models import Container
+                container = Container.objects.filter(name__icontains=data['container']).first()
+                if container:
+                    transaction.container = container
+                else:
+                    # اگه پیدا نکرد، توی description ذخیره کن
+                    transaction.description = data['container']
+            except:
+                transaction.description = data['container']
+            changes_made = True
+            
+        # توضیحات
+        if 'description' in data and data['description']:
+            transaction.description = data['description']
+            changes_made = True
+            
+        # تعداد
+        if 'quantity' in data and data['quantity']:
+            try:
+                transaction.quantity = Decimal(str(data['quantity']))
+                changes_made = True
+            except:
+                pass
+            
+        # قیمت واحد
+        if 'unit_price' in data and data['unit_price']:
+            try:
+                transaction.unit_price = Decimal(str(data['unit_price']))
+                changes_made = True
+            except:
+                pass
+            
+        # تخفیف
+        if 'discount' in data and data['discount']:
+            try:
+                transaction.discount = Decimal(str(data['discount']))
+                changes_made = True
+            except:
+                pass
+            
+        # پیش پرداخت
+        if 'advance' in data and data['advance']:
+            try:
+                transaction.advance = Decimal(str(data['advance']))
+                changes_made = True
+            except:
+                pass
+            
+        # مبلغ پرداخت شده
+        if 'paid' in data and data['paid']:
+            try:
+                transaction.paid = Decimal(str(data['paid']))
+                changes_made = True
+            except:
+                pass
+            
+        # مالیات
+        if 'tax' in data and data['tax']:
+            try:
+                transaction.tax = Decimal(str(data['tax']))
+                changes_made = True
+            except:
+                pass
+            
+        # مشتری (دستی)
+        if 'customer' in data and data['customer']:
+            transaction.customer_name = data['customer']
+            # سعی کن مشتری موجود رو پیدا کنی
+            try:
+                from accounts.models import UserProfile
+                customer = UserProfile.objects.filter(
+                    Q(user__username__icontains=data['customer']) |
+                    Q(user__first_name__icontains=data['customer']) |
+                    Q(customer_name__icontains=data['customer'])
+                ).first()
+                if customer:
+                    transaction.customer = customer
+            except:
+                pass
+            changes_made = True
+        
+        if changes_made:
+            # ذخیره تراکنش (محاسبات خودکار در مدل انجام میشه)
+            transaction.save()
+            
+            # محاسبه مجدد برای آیتم‌ها (اگه آیتم داره)
+            items = transaction.items.all()
+            if items.exists():
+                subtotal_total = Decimal('0')
+                discount_total = Decimal('0')
+                tax_total = Decimal('0')
+                
+                for item in items:
+                    # فقط اگه تغییر کرده بود، آیتم رو آپدیت کن
+                    if 'quantity' in data or 'unit_price' in data or 'discount' in data or 'tax' in data:
+                        item.quantity = transaction.quantity
+                        item.unit_price = transaction.unit_price
+                        item.discount = transaction.discount
+                        
+                        item_calc = CalculationService.calculate_item_amounts(
+                            quantity=item.quantity,
+                            unit_price=item.unit_price,
+                            discount=item.discount,
+                            tax_percent=transaction.tax
+                        )
+                        
+                        item.subtotal = item_calc["subtotal"]
+                        item.tax_amount = item_calc["tax_amount"]
+                        item.total_amount = item_calc["total_amount"]
+                        item.save()
+                    
+                    subtotal_total += item.subtotal
+                    discount_total += item.discount
+                    tax_total += item.tax_amount
+                
+                # به‌روزرسانی تراکنش با مقادیر آیتم‌ها
+                transaction.subtotal = subtotal_total
+                transaction.tax_amount = tax_total
+                transaction.total_amount = (subtotal_total - discount_total + tax_total).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                )
+                transaction.balance = max(transaction.total_amount - transaction.advance, Decimal('0'))
+                
+                if transaction.balance <= Decimal("0") and transaction.total_amount > Decimal("0"):
+                    transaction.payment_status = "paid"
+                elif transaction.advance > Decimal("0"):
+                    transaction.payment_status = "partial"
+                else:
+                    transaction.payment_status = "unpaid"
+                
+                transaction.save()
+        
+        # بازگشت نتیجه با فرمت مناسب برای جاوااسکریپت
+        return JsonResponse({
+            'success': True,
+            'message': 'Transaction updated successfully',
+            'total': str(transaction.total_amount),
+            'balance': str(transaction.balance),
+            'payment_status': transaction.payment_status,
+            'subtotal': str(transaction.subtotal),
+            'tax_amount': str(transaction.tax_amount),
+            'advance': str(transaction.advance),
+            'paid': str(transaction.paid),
+        })
+        
+    except DailySaleTransaction.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Transaction not found'}, status=404)
+    except Exception as e:
+        import traceback
+        logger.error(f"Error updating transaction: {str(e)}")
+        logger.error(traceback.format_exc())
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def transaction_bulk_update(request):
+    """
+    به‌روزرسانی چندین تراکنش با هم
+    """
+    try:
+        data = json.loads(request.POST.get('changes', '[]'))
+        results = []
+        
+        for item in data:
+            tx_id = item.get('id')
+            tx_data = item.get('data', {})
+            
+            try:
+                transaction = DailySaleTransaction.objects.get(pk=tx_id)
+                
+                # به‌روزرسانی فیلدها
+                if 'date' in tx_data:
+                    transaction.date = tx_data['date']
+                if 'customer' in tx_data:
+                    transaction.customer_name = tx_data['customer']
+                if 'container' in tx_data:
+                    transaction.container_name = tx_data['container']
+                if 'description' in tx_data:
+                    transaction.description = tx_data['description']
+                if 'quantity' in tx_data:
+                    transaction.quantity = Decimal(tx_data['quantity'])
+                if 'unit_price' in tx_data:
+                    transaction.unit_price = Decimal(tx_data['unit_price'])
+                if 'discount' in tx_data:
+                    transaction.discount = Decimal(tx_data['discount'])
+                if 'advance' in tx_data:
+                    transaction.advance = Decimal(tx_data['advance'])
+                if 'paid' in tx_data:
+                    transaction.paid = Decimal(tx_data['paid'])
+                if 'tax' in tx_data:
+                    transaction.tax = Decimal(tx_data['tax'])
+                
+                transaction.save()
+                results.append({'id': tx_id, 'success': True})
+                
+            except Exception as e:
+                results.append({'id': tx_id, 'success': False, 'error': str(e)})
+        
+        return JsonResponse({
+            'success': True,
+            'results': results
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 def calculate_daily_series_from_transactions(start_date, end_date):
     try:
@@ -1450,13 +1657,27 @@ def calculate_simple_date_range(period, today):
 def ajax_search_containers(request):
     q = (request.GET.get("q") or "").strip()
     limit = int(request.GET.get("limit") or 25)
+    
     from containers.models import Container
+    
     qs = Container.objects.all()
+    
     if q:
-        qs = qs.filter(Q(name__icontains=q) | Q(identifier__icontains=q))
-    results = [{"id": c.pk, "text": getattr(c, "name", str(c))} for c in qs.order_by("name")[:limit]]
+        qs = qs.filter(
+            Q(container_number__icontains=q) |  # جستجو در شماره کانتینر
+            Q(code__icontains=q)                 # جستجو در کد کانتینر
+        )
+    
+    results = []
+    for c in qs.order_by("container_number")[:limit]:
+        results.append({
+            "id": str(c.pk),
+            "text": c.container_number,  # فقط شماره کانتینر برگردون
+            "container_number": c.container_number,
+            "code": c.code,
+        })
+    
     return JsonResponse({"results": results})
-
 @require_GET
 @login_required
 def ajax_search_items(request):
@@ -1487,6 +1708,7 @@ def ajax_search_customers(request):
     q = (request.GET.get("q") or "").strip()
     limit = int(request.GET.get("limit") or 25)
     from accounts.models import UserProfile
+    
     qs = UserProfile.objects.select_related("user").all()
     if q:
         qs = qs.filter(
@@ -1508,73 +1730,54 @@ def ajax_item_autofill(request):
     
     if not item_id:
         return JsonResponse({"error": "Item ID required"}, status=400)
+    
     try:
-        item = Inventory_List.objects.select_related(
-            'container', 
-            'container__company'
-        ).get(pk=item_id)
+        from containers.models import Inventory_List
+        
+        item = Inventory_List.objects.select_related('container').get(pk=item_id)
         
         container_info = None
         container_id = None
-        container_name = None
-        container_identifier = None
+        container_number = None  # تغییر نام از container_name به container_number
+        container_code = None
         
         if item.container:
             container_id = str(item.container.id)
-            container_name = item.container.name if hasattr(item.container, 'name') else str(item.container)
-            container_identifier = item.container.identifier if hasattr(item.container, 'identifier') else ""
+            container_number = item.container.container_number  # ✅ استفاده از container_number
+            container_code = item.container.code if hasattr(item.container, 'code') else ""
+            
             container_info = {
                 "id": container_id,
-                "text": container_name,
-                "name": container_name,
-                "identifier": container_identifier,
-                "size": item.container.size if hasattr(item.container, 'size') else "",
-                "type": item.container.type if hasattr(item.container, 'type') else "",
-            }
-        
-        company_info = None
-        company_id = None
-        company_name = None
-        
-        if item.container and item.container.company:
-            company_id = str(item.container.company.id)
-            company_name = item.container.company.name if hasattr(item.container.company, 'name') else str(item.container.company)       
-            company_info = {
-                "id": company_id,
-                "text": company_name,
-                "name": company_name,
-                "address": item.container.company.address if hasattr(item.container.company, 'address') else "",
-                "phone": item.container.company.phone if hasattr(item.container.company, 'phone') else "",
-                "email": item.container.company.email if hasattr(item.container.company, 'email') else "",
+                "text": container_number,
+                "container_number": container_number,
+                "code": container_code,
             }
         
         return JsonResponse({
             "success": True,
             "unit_price": float(item.unit_price) if item.unit_price else 0.0,
-            "price": float(item.price) if item.price else 0.0,
-            "sold_price": float(item.sold_price) if item.sold_price else 0.0,
             "available_quantity": float(item.in_stock_qty) if item.in_stock_qty else 0.0,
             "total_sold_qty": float(item.total_sold_qty) if item.total_sold_qty else 0.0,
-            "total_sold_count": item.total_sold_count if item.total_sold_count else 0,
-            "container": container_info,
+            
+            # ✅ اطلاعات کانتینر با فیلدهای درست
             "container_id": container_id,
-            "container_name": container_name,
-            "container_identifier": container_identifier,
-            "company": company_info,
-            "company_id": company_id,
-            "company_name": company_name,
+            "container_number": container_number,  # شماره کانتینر
+            "container_code": container_code,      # کد کانتینر
+            "container_info": container_info,
+            
+            # اطلاعات محصول
             "product_name": item.product_name,
+            "code": item.code,
+            "make": item.make if item.make else "",
             "model": item.model if item.model else "",
             "description": item.description if item.description else "",
-            "code": item.code if item.code else "",
-            "make": item.make if item.make else "",
-            "date_added": item.date_added.strftime('%Y-%m-%d') if item.date_added else "",
+            
+            # اطلاعات نمایشی
             "display_info": {
                 "product": f"{item.code} - {item.product_name}" if item.code else item.product_name,
-                "container": f"{container_name} ({container_identifier})" if container_name and container_identifier else container_name or "",
-                "company": company_name or "",
-                "price": f"AED {item.unit_price:,.0f}" if item.unit_price else "AED 0",
-                "stock": f"{item.in_stock_qty:,.0f} in stock" if item.in_stock_qty else "Out of stock",
+                "container": container_number or "",
+                "price": f"AED {float(item.unit_price):,.0f}" if item.unit_price else "AED 0",
+                "stock": f"{float(item.in_stock_qty):,.0f} in stock" if item.in_stock_qty else "Out of stock",
             }
         })
         
