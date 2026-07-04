@@ -1,13 +1,12 @@
+<!-- daily_sale/templates/daily_sale/transaction_list.html -->
 {% extends "daily_sale/daily_sale_base.html" %}
 {% load humanize %}
 {% load static %}
 
-{% block title %}Almuqbil | TransactionList{% endblock %}
+{% block title %}Almuqbil | Transaction List{% endblock %}
 
 {% block content %}
-<!-- بخش فیلتر و سرچ -->
 <div class="row mb-3">
-
   <div class="excel-menu">
     <a href="{% url 'daily_sale:transaction_create' %}" class="menu-item">
       <i class="fas fa-plus-circle"></i> New Transaction
@@ -15,12 +14,13 @@
     <a href="{% url 'daily_sale:daily_summary' %}" class="menu-item">
       <i class="fas fa-chart-bar"></i> Daily Summary
     </a>
-    <a href="{% url 'daily_sale:cleared_transactions' %}" class="menu-item">
-      <i class="fas fa-check-double"></i> Cleared Bills
+    <a href="{% url 'daily_sale:transaction_list' %}" class="menu-item active">
+      <i class="fas fa-list"></i> Transaction List
     </a>
   </div>
-  <div class="col-md-8">
-    <div class="d-flex align-items-center text-dark">
+
+  <div class="col-md-8 mt-2">
+    <div class="d-flex align-items-center text-dark flex-wrap">
       <span class="me-2">Search:</span>
       <span class="filter-badge" data-filter="today">Today</span>
       <span class="filter-badge" data-filter="week">This Week</span>
@@ -30,87 +30,64 @@
       <span class="filter-badge" data-filter="partial">Partial</span>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-md-4 mt-2">
     <div class="position-relative search-box">
       <input type="text" id="search-input" class="form-control search-input"
-        placeholder="Search by invoice, customer...">
-      <i class="bi bi-search position-absolute" style="left: 10px; top: 10px; color: #999;"></i>
-      <i class="bi bi-x-circle clear-search" id="clear-search" style="display: none;"></i>
+        placeholder="Search by invoice, customer, code...">
+      <i class="bi bi-x-circle clear-search" id="clear-search" style="display: none; cursor: pointer;"></i>
     </div>
   </div>
 </div>
 
-<!-- بقیه کدهای قبلی... -->
 <div class="row mb-4">
   <div class="col-xl-3 col-md-6 mb-4">
     <div class="card summary-card border-left-primary shadow-sm h-100 py-2">
       <div class="card-body">
         <div class="row no-gutters align-items-center">
           <div class="col mr-2">
-            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-              Total Transactions
-            </div>
-            <div class="h5 mb-0 font-weight-bold text-gray-800">
-              {{ total_count|intcomma }}
-            </div>
-            <div class="mt-2 mb-0 text-muted text-xs">
-              <span class="text-success mr-2">
-                <i class="bi bi-calendar-week me-1"></i>
-                Showing {{ page_obj.start_index }}-{{ page_obj.end_index }}
-              </span>
-            </div>
+            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Transactions</div>
+            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ stats.transaction_count|default:0|intcomma }}</div>
           </div>
-          <div class="col-auto">
-            <i class="bi bi-receipt-cutoff fa-2x text-gray-300"></i>
-          </div>
+          <div class="col-auto"><i class="bi bi-receipt fa-2x text-gray-300"></i></div>
         </div>
       </div>
     </div>
   </div>
-
   <div class="col-xl-3 col-md-6 mb-4">
     <div class="card summary-card border-left-success shadow-sm h-100 py-2">
       <div class="card-body">
         <div class="row no-gutters align-items-center">
           <div class="col mr-2">
-            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-              Total Sales
-            </div>
-            <div class="h6 mb-0 font-weight-bold text-gray-800">
-              AED {{ stats.total_sales|floatformat:0|intcomma }}
-            </div>
-            <div class="mt-2 mb-0 text-muted text-xs">
-              {% if stats.items_sold %}
-              <span>{{ stats.items_sold|intcomma }} items sold</span>
-              {% endif %}
-            </div>
+            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Net Sales</div>
+            <div class="h6 mb-0 font-weight-bold text-gray-800">AED {{ stats.net_total|default:0|floatformat:0|intcomma}}</div>
           </div>
-          <div class="col-auto">
-            <i class="bi bi-cash-stack fa-2x text-gray-300"></i>
-          </div>
+          <div class="col-auto"><i class="bi bi-cash-stack fa-2x text-gray-300"></i></div>
         </div>
       </div>
     </div>
   </div>
-
+  <div class="col-xl-3 col-md-6 mb-4">
+    <div class="card summary-card border-left-info shadow-sm h-100 py-2">
+      <div class="card-body">
+        <div class="row no-gutters align-items-center">
+          <div class="col mr-2">
+            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Paid</div>
+            <div class="h6 mb-0 font-weight-bold text-gray-800">AED {{ stats.total_paid|default:0|floatformat:0|intcomma}}</div>
+          </div>
+          <div class="col-auto"><i class="bi bi-credit-card fa-2x text-gray-300"></i></div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="col-xl-3 col-md-6 mb-4">
     <div class="card summary-card border-left-warning shadow-sm h-100 py-2">
       <div class="card-body">
         <div class="row no-gutters align-items-center">
           <div class="col mr-2">
-            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-              Old Transactions
-            </div>
-            <div class="h6 mb-0 font-weight-bold text-gray-800">
-              AED {{ stats.total_outstanding|floatformat:0|intcomma }}
-            </div>
-            <div class="mt-2 mb-0 text-muted text-xs">
-              <span>{{ stats.outstanding_count }} unpaid</span>
-            </div>
+            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Total QTY</div>
+            <div class="h6 mb-0 font-weight-bold text-gray-800">{{ stats.total_qty|default:0|intcomma }}</div>
           </div>
-          <div class="col-auto">
-            <i class="bi bi-clock-history fa-2x text-gray-300"></i>
-          </div>
+          <div class="col-auto"><i class="bi bi-box-seam fa-2x text-gray-300"></i></div>
         </div>
       </div>
     </div>
@@ -120,19 +97,121 @@
 <div class="card shadow mb-4">
   <div class="card-header py-3 d-flex justify-content-between align-items-center">
     <h6 class="m-0 font-weight-bold text-primary">
-      <i class="bi bi-list-ul me-2"></i>Transaction Records (Double-click to edit)
+      <i class="bi bi-list-ul me-2"></i>Transaction Records
+      <span class="badge bg-secondary ms-2">{{ page_obj.paginator.count }} total</span>
     </h6>
-    <div class="d-flex align-items-center">
-      <button class="btn btn-sm btn-success me-2" id="save-all-btn" style="display:none;">
+    <div class="d-flex align-items-center gap-3">
+      <button class="btn btn-sm btn-success" id="saveAllBtn">
         <i class="bi bi-save"></i> Save All
       </button>
-      <span class="me-3 text-muted small">
-        Page {{ page_obj.number }} of {{ paginator.num_pages }}
-      </span>
+      <span class="text-muted small">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
     </div>
   </div>
   <div class="card-body">
-    {% if page_obj.paginator.count == 0 %}
+    {% if transactions %}
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered" id="transactions-table" width="100%" cellspacing="0">
+        <thead class="table-light">
+          <tr>
+            <th style="width:30px;">#</th>
+            <th>Invoice #</th>
+            <th>Date</th>
+            <th>Customer</th>
+            <th>Code</th>
+            <th>Description</th>
+            <th class="text-end" style="width:70px;">Qty</th>
+            <th class="text-end" style="width:100px;">Sales</th>
+            <th class="text-end" style="width:100px;">Paid</th>
+            <th class="text-end" style="width:100px;">Discount</th>
+            <th class="text-end" style="width:100px;">Total</th>
+            <th style="width:100px;">Status</th>
+            <th class="text-center" style="width:100px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tx in transactions %}
+          <tr class="transaction-row" data-id="{{ tx.id }}">
+            <td>{{ forloop.counter }}</td>
+            <td><strong class="text-primary">{{ tx.invoice_number }}</strong></td>
+            <td class="editable" data-field="date" data-type="date">
+              <span class="cell-value">{{ tx.date|date:"Y-m-d" }}</span>
+              <input type="date" value="{{ tx.date|date:'Y-m-d' }}" class="edit-input"
+                style="display:none; width:120px;">
+            </td>
+            <td class="editable" data-field="customer_name" data-type="text">
+              <span class="cell-value">{{ tx.customer_name|default:"—" }}</span>
+              <input type="text" value="{{ tx.customer_name|default:'' }}" class="edit-input"
+                style="display:none; width:120px;">
+            </td>
+            <td class="editable" data-field="code" data-type="text">
+              <span class="cell-value">{{ tx.code|default:"—" }}</span>
+              <input type="text" value="{{ tx.code|default:'' }}" class="edit-input" style="display:none; width:80px;">
+            </td>
+            <td class="editable" data-field="item_description" data-type="text">
+              <span class="cell-value">{{ tx.item_description|default:"—"|truncatechars:25 }}</span>
+              <input type="text" value="{{ tx.item_description|default:'' }}" class="edit-input"
+                style="display:none; width:150px;">
+            </td>
+            <td class="editable text-end" data-field="qty" data-type="number">
+              <span class="cell-value">{{ tx.qty|intcomma }}</span>
+              <input type="number" value="{{ tx.qty }}" class="edit-input text-end" style="display:none; width:60px;"
+                min="0">
+            </td>
+            <td class="editable text-end" data-field="sales" data-type="number">
+              <span class="cell-value">{{ tx.sales|floatformat:2|intcomma }}</span>
+              <input type="number" step="0.01" value="{{ tx.sales }}" class="edit-input text-end"
+                style="display:none; width:90px;" min="0">
+            </td>
+            <td class="editable text-end" data-field="paid" data-type="number">
+              <span class="cell-value">{{ tx.paid|floatformat:2|intcomma }}</span>
+              <input type="number" step="0.01" value="{{ tx.paid }}" class="edit-input text-end"
+                style="display:none; width:90px;" min="0">
+            </td>
+            <td class="editable text-end" data-field="discount" data-type="number">
+              <span class="cell-value">{{ tx.discount|floatformat:2|intcomma }}</span>
+              <input type="number" step="0.01" value="{{ tx.discount }}" class="edit-input text-end"
+                style="display:none; width:90px;" min="0">
+            </td>
+            <td class="text-end fw-bold">
+              <span class="total-display">AED {{ tx.total|floatformat:2|intcomma }}</span>
+            </td>
+            <td>
+              {% if tx.payment_status == 'paid' %}
+              <span class="badge bg-success status-badge">✓ PAID</span>
+              {% elif tx.payment_status == 'partial' %}
+              <span class="badge bg-warning status-badge">⨁ PARTIAL</span>
+              {% else %}
+              <span class="badge bg-danger status-badge">○ UNPAID</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm" role="group">
+                <a href="{% url 'daily_sale:invoice' tx.id %}" class="btn btn-outline-primary" title="View Details">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <a href="{% url 'daily_sale:transaction_delete' tx.id %}" class="btn btn-outline-danger"
+                  onclick="return confirmDelete('{{ tx.invoice_number }}')" title="Delete">
+                  <i class="bi bi-trash"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-light">
+          <tr class="fw-bold">
+            <td colspan="6" class="text-end">Grand Total:</td>
+            <td class="text-end">{{ stats.total_qty|default:0|intcomma }}</td>
+            <td class="text-end">AED {{ stats.total_sales|default:0|floatformat:2|intcomma }}</td>
+            <td class="text-end">AED {{ stats.total_paid|default:0|floatformat:2|intcomma }}</td>
+            <td class="text-end">AED {{ stats.total_discount|default:0|floatformat:2|intcomma }}</td>
+            <td class="text-end">AED {{ stats.net_total|default:0|floatformat:2|intcomma }}</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
     <div class="text-center py-5">
       <div class="text-muted">
         <i class="bi bi-receipt display-6 d-block mb-3"></i>
@@ -143,268 +222,386 @@
         </a>
       </div>
     </div>
-    {% else %}
-    <div class="table-responsive">
-      <table class="table table-hover" id="transactions-table" width="100%" cellspacing="0">
-        <thead class="table-light">
-          <tr>
-            <th>Invoice #</th>
-            <th>Date</th>
-            <th>Customer</th>
-            <th>Code</th>
-            <th>Description</th>
-            <th>Item</th>
-            <th class="text-end">Qty</th>
-            <th class="text-end">Price</th>
-            <th class="text-end">Discount</th>
-            <th class="text-end">Advance</th>
-            <th class="text-end">Paid</th>
-            <th class="text-end">Total</th>
-            <th>Tax</th>
-            <th>Status</th>
-            <th class="text-center">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for transaction in transactions %}
-          <tr class="transaction-row align-middle" data-id="{{ transaction.id }}"
-            data-invoice="{{ transaction.invoice_number }}">
-            <!-- Invoice # (غیرقابل ویرایش) -->
-            <td>
-              <strong class="text-primary">{{ transaction.invoice_number }}</strong>
-              {% if transaction.note %}
-              <i class="bi bi-chat-text ms-1 text-muted" data-bs-toggle="tooltip"
-                title="{{ transaction.note|truncatechars:100 }}"></i>
-              {% endif %}
-            </td>
-
-            <!-- Date (قابل ویرایش) -->
-            <td class="editable-cell" data-field="date" data-type="date">
-              <span class="cell-value">{{ transaction.date|date:"M d" }}</span>
-              <input type="date" class="form-control" value="{{ transaction.date|date:'Y-m-d' }}">
-            </td>
-
-            <!-- Customer (قابل ویرایش) -->
-            <td class="editable-cell" data-field="customer" data-type="text">
-              <span class="cell-value">
-                {% if transaction.customer %}
-                {{ transaction.customer.user.get_full_name|default:transaction.customer.user.username|truncatechars:20}}
-                {% elif transaction.customer_name %}
-                {{ transaction.customer_name|truncatechars:25 }}
-                {% else %}
-                —
-                {% endif %}
-              </span>
-              <input type="text" class="form-control"
-                value="{% if transaction.customer %}{{ transaction.customer.user.get_full_name }}{% elif transaction.customer_name %}{{ transaction.customer_name }}{% endif %}">
-            </td>
-
-            <!-- Code (قابل ویرایش) -->
-            <td class="editable-cell" data-field="container" data-type="text">
-              <span class="cell-value">
-                {% if transaction.display_container %}
-                {{ transaction.display_container.name|default:transaction.display_container|truncatechars:12 }}
-                {% else %}
-                —
-                {% endif %}
-              </span>
-              <input type="text" class="form-control"
-                value="{% if transaction.display_container %}{{ transaction.display_container.name|default:transaction.display_container }}{% endif %}">
-            </td>
-
-            <!-- Description (قابل ویرایش) -->
-            <td class="editable-cell" data-field="description" data-type="text">
-              <span class="cell-value">
-                {% if transaction.description %}
-                {{ transaction.description|truncatechars:15 }}
-                {% else %}
-                —
-                {% endif %}
-              </span>
-              <input type="text" class="form-control" value="{{ transaction.description|default:'' }}">
-            </td>
-
-            <!-- Item (غیرقابل ویرایش) -->
-            <td>
-              {% if transaction.display_item_name %}
-              {{ transaction.display_item_name|truncatechars:15 }}
-              {% if transaction.items_count > 1 %}
-              <br><small class="text-muted">+{{ transaction.items_count|add:"-1" }}</small>
-              {% endif %}
-              {% else %}
-              <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-
-            <!-- Qty (قابل ویرایش) -->
-            <td class="text-end editable-cell" data-field="quantity" data-type="number">
-              <span class="cell-value">{{ transaction.display_quantity|intcomma }}</span>
-              <input type="number" class="form-control text-end" value="{{ transaction.display_quantity }}" min="1"
-                step="1">
-            </td>
-
-            <!-- Price (قابل ویرایش) -->
-            <td class="text-end editable-cell" data-field="unit_price" data-type="number">
-              <span class="cell-value">AED {{ transaction.display_unit_price|floatformat:0|intcomma }}</span>
-              <input type="number" class="form-control text-end" value="{{ transaction.display_unit_price }}" min="0"
-                step="0.01">
-            </td>
-
-            <!-- Discount (قابل ویرایش) -->
-            <td class="text-end editable-cell" data-field="discount" data-type="number">
-              <span class="cell-value text-danger">AED {{ transaction.discount|default:0|floatformat:0|intcomma}}</span>
-              <input type="number" class="form-control text-end" value="{{ transaction.discount|default:0 }}" min="0"
-                step="0.01">
-            </td>
-
-            <!-- Advance (قابل ویرایش) -->
-            <td class="text-end editable-cell" data-field="advance" data-type="number">
-              <span class="cell-value text-warning">AED {{ transaction.advance|floatformat:0|intcomma }}</span>
-              <input type="number" class="form-control text-end" value="{{ transaction.advance|default:0 }}" min="0"
-                step="0.01">
-            </td>
-
-            <!-- Paid (قابل ویرایش) -->
-            <td class="text-end editable-cell" data-field="paid" data-type="number">
-              <span class="cell-value text-success">AED {{ transaction.paid_amount|floatformat:0|intcomma }}</span>
-              <input type="number" class="form-control text-end" value="{{ transaction.paid_amount|default:0 }}" min="0"
-                step="0.01">
-            </td>
-
-            <!-- Total (محاسبه خودکار) -->
-            <td class="text-end fw-bold total-cell" id="total-{{ transaction.id }}">
-              AED {{ transaction.display_total|floatformat:0|intcomma }}
-            </td>
-
-            <!-- Tax (قابل ویرایش) -->
-            <td class="editable-cell" data-field="tax" data-type="number">
-              <span class="cell-value">{{ transaction.tax|default:"5" }}%</span>
-              <input type="number" class="form-control" value="{{ transaction.tax|default:'5' }}" min="0" max="100"
-                step="0.1">
-            </td>
-
-            <!-- Status (محاسبه خودکار) -->
-            <td>
-              <span class="payment-badge payment-{{ transaction.payment_status }}" id="status-{{ transaction.id }}">
-                {{ transaction.get_payment_status_display|upper }}
-              </span>
-              <small class="text-muted d-block mt-1" id="balance-{{ transaction.id }}">
-                Bal: AED {{ transaction.remaining_balance|floatformat:0|intcomma }}
-              </small>
-            </td>
-
-            <!-- Actions -->
-            <td class="text-center">
-              <div class="view-actions">
-                <div class="btn-group">
-                  <a href="{% url 'daily_sale:detail' transaction.id %}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-eye"></i>
-                  </a>
-                  <a href="{% url 'daily_sale:transaction_delete' transaction.id %}"
-                    class="btn btn-sm btn-outline-danger"
-                    onclick="return confirmDelete('{{ transaction.invoice_number }}')">
-                    <i class="bi bi-trash"></i>
-                  </a>
-                </div>
-              </div>
-              <div class="edit-actions">
-                <button class="btn-edit-save save-row" data-id="{{ transaction.id }}">
-                  <i class="bi bi-check-lg"></i> Save
-                </button>
-                <button class="btn-edit-cancel cancel-row" data-id="{{ transaction.id }}">
-                  <i class="bi bi-x-lg"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
     {% endif %}
 
+    <!-- Pagination -->
     {% if paginator.num_pages > 1 %}
     <nav aria-label="Page navigation" class="mt-4">
       <ul class="pagination justify-content-center">
         {% if page_obj.has_previous %}
-        <li class="page-item">
-          <a class="page-link" href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page=1">
-            <i class="bi bi-chevron-double-left"></i>
-          </a>
-        </li>
-        <li class="page-item">
-          <a class="page-link"
-            href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">
-            <i class="bi bi-chevron-left"></i>
-          </a>
-        </li>
-        {% else %}
-        <li class="page-item disabled">
-          <span class="page-link"><i class="bi bi-chevron-double-left"></i></span>
-        </li>
-        <li class="page-item disabled">
-          <span class="page-link"><i class="bi bi-chevron-left"></i></span>
-        </li>
+        <li class="page-item"><a class="page-link" href="?page=1&{{ request.GET.urlencode }}"><i
+              class="bi bi-chevron-double-left"></i></a></li>
+        <li class="page-item"><a class="page-link"
+            href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}"><i
+              class="bi bi-chevron-left"></i></a></li>
         {% endif %}
-
-        {% for num in paginator.page_range %}
-        {% if page_obj.number == num %}
-        <li class="page-item active">
-          <span class="page-link">{{ num }}</span>
+        <li class="page-item active"><span class="page-link">{{ page_obj.number }} of {{ paginator.num_pages }}</span>
         </li>
-        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <li class="page-item">
-          <a class="page-link"
-            href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">{{ num }}</a>
-          </li>
-          {% endif %}
-          {% endfor %}
-
-          {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link"
-              href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">
-              <i class="bi bi-chevron-right"></i>
-            </a>
-          </li>
-          <li class="page-item">
-            <a class="page-link"
-              href="?{% if request.GET.urlencode %}{{ request.GET.urlencode }}&{% endif %}page={{ paginator.num_pages }}">
-              <i class="bi bi-chevron-double-right"></i>
-            </a>
-          </li>
-          {% else %}
-          <li class="page-item disabled">
-            <span class="page-link"><i class="bi bi-chevron-right"></i></span>
-          </li>
-          <li class="page-item disabled">
-            <span class="page-link"><i class="bi bi-chevron-double-right"></i></span>
-          </li>
-          {% endif %}
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link"
+            href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}"><i
+              class="bi bi-chevron-right"></i></a></li>
+        <li class="page-item"><a class="page-link" href="?page={{ paginator.num_pages }}&{{ request.GET.urlencode }}"><i
+              class="bi bi-chevron-double-right"></i></a></li>
+        {% endif %}
       </ul>
-      <div class="text-center text-muted small mt-2">
-        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ total_count }} entries
-      </div>
     </nav>
     {% endif %}
   </div>
-  <div class="card-footer bg-light">
-    <div class="row">
-      <div class="col-md-6 text-end">
-        <small class="text-muted">
-          Last updated: {% now "H:i" %}
-        </small>
-      </div>
-    </div>
-  </div>
 </div>
 
-<div class="toast-container" id="toast-container"></div>
+<div id="toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 11;"></div>
 {% endblock %}
-
 {% block extra_js %}
 <script>
-  // تعریف showToast در سطح جهانی
-  function showToast(message, type) {
+
+
+  let editingRow = null;
+  let originalValues = {};
+
+  // CSRF Token
+  function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, 10) === 'csrftoken=') {
+          cookieValue = decodeURIComponent(cookie.substring(10));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCSRFToken();
+  document.querySelectorAll('.editable').forEach(function (cell) {
+    cell.addEventListener('dblclick', function (e) {
+      e.stopPropagation();
+      const row = this.closest('tr');
+      const rowId = row.dataset.id;
+
+      console.log('🖱️ Double-click on row:', rowId);
+
+      if (!rowId) {
+        console.error('❌ Row ID is undefined!');
+        showToast('❌ Row ID not found', 'error');
+        return;
+      }
+
+      if (editingRow && editingRow !== rowId) {
+        const prevRow = document.querySelector(`tr[data-id="${editingRow}"]`);
+        if (prevRow) {
+          saveRow(prevRow);
+        }
+      }
+
+      // Start editing this row
+      if (!row.classList.contains('editing')) {
+        startEditing(row);
+      }
+
+      // Edit this cell
+      if (!this.classList.contains('editing')) {
+        this.classList.add('editing');
+        const input = this.querySelector('.edit-input');
+        if (input) {
+          input.style.display = 'block';
+          input.focus();
+          input.select();
+        }
+      }
+    });
+  });
+
+  function startEditing(row) {
+    const rowId = row.dataset.id;
+    editingRow = rowId;
+
+    row.classList.add('editing');
+    originalValues[rowId] = {};
+
+    row.querySelectorAll('.editable').forEach(function (cell) {
+      const field = cell.dataset.field;
+      originalValues[rowId][field] = cell.querySelector('.cell-value').textContent.trim();
+    });
+
+    console.log('✏️ Started editing row:', rowId);
+  }
+
+  // ============================================================
+  // SAVE ROW
+  // ============================================================
+  function saveRow(row) {
+    const rowId = row.dataset.id;
+
+    if (!rowId) {
+      console.error('❌ Cannot save: Row ID is undefined');
+      showToast('❌ Row ID not found', 'error');
+      return;
+    }
+
+    console.log('💾 Saving row:', rowId);
+
+    const changes = {};
+    let hasChanges = false;
+
+    row.querySelectorAll('.editable.editing').forEach(function (cell) {
+      const field = cell.dataset.field;
+      const input = cell.querySelector('.edit-input');
+      if (!input) return;
+
+      const newValue = input.value.trim();
+      const oldValue = originalValues[rowId] ? originalValues[rowId][field] || '' : '';
+
+      if (newValue !== oldValue) {
+        changes[field] = newValue;
+        hasChanges = true;
+      }
+
+      // Update display
+      cell.querySelector('.cell-value').textContent = newValue || '—';
+      cell.classList.remove('editing');
+      input.style.display = 'none';
+    });
+
+    row.classList.remove('editing');
+    editingRow = null;
+
+    console.log('Changes:', changes);
+    console.log('Has changes:', hasChanges);
+
+    if (hasChanges && Object.keys(changes).length > 0) {
+      // Use absolute URL with rowId
+      const url = `/daily_sale/api/transaction/${rowId}/update/`;
+      console.log('Sending to:', url);
+
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': csrftoken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(changes)
+      })
+        .then(response => {
+          console.log('Response status:', response.status);
+          if (!response.ok) {
+            return response.text().then(text => {
+              console.error('Error response:', text);
+              throw new Error(`HTTP error! status: ${response.status} - ${text}`);
+            });
+          }
+          return response.json();
+        })
+        .then(data => {
+          console.log('Response data:', data);
+          if (data.success) {
+            showToast('Transaction updated successfully', 'success');
+
+            // Update total and status if needed
+            if (data.total !== undefined) {
+              const totalDisplay = row.querySelector('.total-display');
+              if (totalDisplay) {
+                totalDisplay.textContent = 'AED ' + data.total.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2
+                });
+              }
+            }
+
+            if (data.payment_status !== undefined) {
+              const badge = row.querySelector('.status-badge');
+              if (badge) {
+                const statusMap = {
+                  'paid': '<span class="badge bg-success status-badge">✓ PAID</span>',
+                  'partial': '<span class="badge bg-warning status-badge">⨁ PARTIAL</span>',
+                  'unpaid': '<span class="badge bg-danger status-badge">○ UNPAID</span>'
+                };
+                badge.outerHTML = statusMap[data.payment_status] || badge.outerHTML;
+              }
+            }
+
+            // Update totals in footer
+            updateGrandTotals();
+          } else {
+            showToast('❌ ' + (data.error || 'Unknown error'), 'error');
+            revertRow(row);
+          }
+        })
+        .catch(error => {
+          console.error('❌ Network error:', error);
+          showToast('❌ Network error: ' + error.message, 'error');
+          revertRow(row);
+        });
+    } else {
+      console.log('ℹ️ No changes to save');
+      showToast('ℹ️ No changes to save', 'info');
+    }
+  }
+
+  // ============================================================
+  // REVERT ROW (on error)
+  // ============================================================
+  function revertRow(row) {
+    const rowId = row.dataset.id;
+    if (!rowId) return;
+
+    row.querySelectorAll('.editable').forEach(function (cell) {
+      const field = cell.dataset.field;
+      const originalValue = originalValues[rowId] ? originalValues[rowId][field] || '—' : '—';
+      cell.querySelector('.cell-value').textContent = originalValue;
+      cell.classList.remove('editing');
+      const input = cell.querySelector('.edit-input');
+      if (input) input.style.display = 'none';
+    });
+    row.classList.remove('editing');
+    editingRow = null;
+  }
+
+  // ============================================================
+  // CANCEL EDIT (on Escape)
+  // ============================================================
+  function cancelEdit(row) {
+    const rowId = row.dataset.id;
+    if (!rowId) return;
+
+    row.querySelectorAll('.editable.editing').forEach(function (cell) {
+      const field = cell.dataset.field;
+      const originalValue = originalValues[rowId] ? originalValues[rowId][field] || '—' : '—';
+      cell.querySelector('.cell-value').textContent = originalValue;
+      cell.classList.remove('editing');
+      const input = cell.querySelector('.edit-input');
+      if (input) input.style.display = 'none';
+    });
+
+    row.classList.remove('editing');
+    editingRow = null;
+    showToast('✖️ Editing cancelled', 'info');
+  }
+
+  // ============================================================
+  // SAVE ALL BUTTON
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', function () {
+    const saveAllBtn = document.getElementById('saveAllBtn');
+    if (saveAllBtn) {
+      saveAllBtn.addEventListener('click', function () {
+        const rows = document.querySelectorAll('.transaction-row.editing');
+        if (rows.length === 0) {
+          showToast('⚠️ No changes to save', 'warning');
+          return;
+        }
+
+        rows.forEach(function (row) {
+          saveRow(row);
+        });
+      });
+    }
+  });
+
+  // ============================================================
+  // CANCEL EDIT ON ESCAPE
+  // ============================================================
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && editingRow) {
+      const row = document.querySelector(`tr[data-id="${editingRow}"]`);
+      if (row) {
+        cancelEdit(row);
+      }
+    }
+  });
+
+  // ============================================================
+  // UPDATE GRAND TOTALS
+  // ============================================================
+  function updateGrandTotals() {
+    let totalQty = 0;
+    let totalSales = 0;
+    let totalPaid = 0;
+    let totalDiscount = 0;
+    let totalNet = 0;
+
+    document.querySelectorAll('.transaction-row').forEach(function (row) {
+      const qtyEl = row.querySelector('[data-field="qty"] .cell-value');
+      const salesEl = row.querySelector('[data-field="sales"] .cell-value');
+      const paidEl = row.querySelector('[data-field="paid"] .cell-value');
+      const discountEl = row.querySelector('[data-field="discount"] .cell-value');
+
+      const qty = parseFloat(qtyEl ? qtyEl.textContent.replace(/,/g, '') : 0) || 0;
+      const sales = parseFloat(salesEl ? salesEl.textContent.replace(/,/g, '') : 0) || 0;
+      const paid = parseFloat(paidEl ? paidEl.textContent.replace(/,/g, '') : 0) || 0;
+      const discount = parseFloat(discountEl ? discountEl.textContent.replace(/,/g, '') : 0) || 0;
+
+      totalQty += qty;
+      totalSales += sales;
+      totalPaid += paid;
+      totalDiscount += discount;
+      totalNet += (sales - discount);
+    });
+
+    const tfoot = document.querySelector('tfoot');
+    if (tfoot) {
+      const cells = tfoot.querySelectorAll('td');
+      if (cells.length >= 5) {
+        cells[0].textContent = totalQty.toLocaleString();
+        cells[1].textContent = 'AED ' + totalSales.toFixed(2).toLocaleString();
+        cells[2].textContent = 'AED ' + totalPaid.toFixed(2).toLocaleString();
+        cells[3].textContent = 'AED ' + totalDiscount.toFixed(2).toLocaleString();
+        cells[4].textContent = 'AED ' + totalNet.toFixed(2).toLocaleString();
+      }
+    }
+  }
+
+  // ============================================================
+  // SEARCH & FILTER
+  // ============================================================
+  $(document).ready(function () {
+    $('#search-input').on('keyup', function () {
+      const searchTerm = $(this).val().toLowerCase();
+      const hasSearch = searchTerm.length > 0;
+      $('#clear-search').toggle(hasSearch);
+
+      $('.transaction-row').each(function () {
+        const text = $(this).text().toLowerCase();
+        $(this).toggle(text.includes(searchTerm));
+      });
+    });
+
+    $('#clear-search').on('click', function () {
+      $('#search-input').val('').trigger('keyup');
+    });
+
+    $('.filter-badge').on('click', function () {
+      const filter = $(this).data('filter');
+      $('.filter-badge').removeClass('active');
+      $(this).addClass('active');
+
+      const today = new Date();
+
+      if (filter === 'today') {
+        const date = today.toISOString().split('T')[0];
+        window.location.href = `?start_date=${date}&end_date=${date}`;
+      } else if (filter === 'week') {
+        const start = new Date(today);
+        start.setDate(today.getDate() - today.getDay());
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
+        window.location.href = `?start_date=${start.toISOString().split('T')[0]}&end_date=${end.toISOString().split('T')[0]}`;
+      } else if (filter === 'month') {
+        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        window.location.href = `?start_date=${start.toISOString().split('T')[0]}&end_date=${end.toISOString().split('T')[0]}`;
+      } else {
+        window.location.href = `?payment_status=${filter}`;
+      }
+    });
+  });
+
+  // ============================================================
+  // TOAST
+  // ============================================================
+  function showToast(message, type = 'success') {
     const colors = {
       success: '#28a745',
       error: '#dc3545',
@@ -414,283 +611,29 @@
 
     const toastId = 'toast-' + Date.now();
     const toastHtml = `
-      <div id="${toastId}" class="toast-message" style="border-left-color: ${colors[type]}">
-        <strong style="color: ${colors[type]}">${type.toUpperCase()}</strong>
-        <div style="margin-top: 5px;">${message}</div>
+    <div id="${toastId}" class="toast align-items-center text-white" role="alert" style="background-color: ${colors[type]} !important; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+      <div class="d-flex">
+        <div class="toast-body">${message}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
       </div>
-    `;
+    </div>
+  `;
 
     $('#toast-container').append(toastHtml);
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 3000 });
+    toast.show();
 
-    setTimeout(() => {
-      $(`#${toastId}`).fadeOut(300, function () { $(this).remove(); });
-    }, 3000);
+    toastElement.addEventListener('hidden.bs.toast', function () {
+      $(this).remove();
+    });
   }
 
-  $(document).ready(function () {
-    let editingRow = null;
-    let originalValues = {};
-
-    // ===== فعال کردن ویرایش با دوبار کلیک =====
-    $('.editable-cell').on('dblclick', function () {
-      const row = $(this).closest('tr');
-      const rowId = row.data('id');
-
-      // اگر ردیف دیگری در حال ویرایش است، اول ذخیره کن
-      if (editingRow && editingRow !== rowId) {
-        saveRow(editingRow);
-      }
-
-      // فعال کردن حالت ویرایش برای این ردیف
-      if (!row.hasClass('editing-row')) {
-        startEditing(row);
-      }
-
-      // ویرایش سلول خاص
-      const cell = $(this);
-      if (!cell.hasClass('editing')) {
-        cell.addClass('editing');
-        cell.find('input').focus();
-      }
-    });
-
-    // ===== شروع ویرایش ردیف =====
-    function startEditing(row) {
-      const rowId = row.data('id');
-      editingRow = rowId;
-
-      // ذخیره مقادیر اصلی
-      originalValues[rowId] = {};
-      row.find('.editable-cell').each(function () {
-        const field = $(this).data('field');
-        originalValues[rowId][field] = $(this).find('.cell-value').text().trim();
-      });
-
-      // هایلایت ردیف
-      row.addClass('editing-row');
-
-      // نمایش دکمه Save All
-      $('#save-all-btn').show();
-    }
-
-    // ===== ذخیره یک ردیف =====
-    $('.save-row').on('click', function () {
-      const rowId = $(this).data('id');
-      saveRow(rowId);
-    });
-
-    function saveRow(rowId) {
-      const row = $(`tr[data-id="${rowId}"]`);
-      const changes = {};
-      let hasChanges = false;
-
-      // جمع‌آوری تغییرات
-      row.find('.editable-cell.editing').each(function () {
-        const field = $(this).data('field');
-        const newValue = $(this).find('input').val();
-        const oldValue = $(this).find('.cell-value').text().trim();
-
-        // حذف "AED" و کاما برای مقایسه اعداد
-        const cleanNew = newValue.replace(/[^0-9.-]/g, '');
-        const cleanOld = oldValue.replace(/[^0-9.-]/g, '');
-
-        if (cleanNew !== cleanOld && cleanNew !== '') {
-          changes[field] = cleanNew;
-          hasChanges = true;
-        }
-
-        // برگردوندن به حالت نمایش
-        $(this).removeClass('editing');
-      });
-
-      if (hasChanges) {
-        // ارسال به سرور
-        $.ajax({
-          url: `/daily-sale/transaction/${rowId}/update/`,
-          method: 'POST',
-          data: {
-            ...changes,
-            csrfmiddlewaretoken: '{{ csrf_token }}'
-          },
-          success: function (response) {
-            if (response.success) {
-              // به‌روزرسانی سلول‌ها
-              Object.keys(changes).forEach(field => {
-                const cell = row.find(`.editable-cell[data-field="${field}"]`);
-                let displayValue = changes[field];
-
-                // فرمت‌بندی براساس نوع فیلد
-                if (field === 'date') {
-                  const date = new Date(changes[field]);
-                  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                  displayValue = monthNames[date.getMonth()] + ' ' + date.getDate();
-                } else if (['unit_price', 'discount', 'advance', 'paid'].includes(field)) {
-                  displayValue = 'AED ' + Number(changes[field]).toLocaleString();
-                } else {
-                  displayValue = changes[field];
-                }
-
-                cell.find('.cell-value').text(displayValue);
-              });
-
-              // به‌روزرسانی فیلدهای محاسبه شده
-              if (response.total) {
-                $(`#total-${rowId}`).text('AED ' + Number(response.total).toLocaleString());
-              }
-              if (response.payment_status) {
-                const statusSpan = $(`#status-${rowId}`);
-                statusSpan.text(response.payment_status.toUpperCase())
-                  .removeClass()
-                  .addClass('payment-badge payment-' + response.payment_status);
-              }
-              if (response.balance) {
-                $(`#balance-${rowId}`).text('Bal: AED ' + Number(response.balance).toLocaleString());
-              }
-
-              showToast('Changes saved successfully', 'success');
-            } else {
-              showToast('Error: ' + response.error, 'error');
-            }
-          },
-          error: function (xhr) {
-            console.error('Error:', xhr.responseText);
-            let errorMsg = 'Error saving changes';
-            try {
-              const response = JSON.parse(xhr.responseText);
-              errorMsg = response.error || errorMsg;
-            } catch (e) { }
-            showToast(errorMsg, 'error');
-            cancelEditing(rowId);
-          }
-        });
-      } else {
-        // اگه تغییری نبود، فقط حالت ویرایش رو تموم کن
-        endEditing(row);
-        showToast('No changes to save', 'info');
-      }
-    }
-
-    // ===== لغو ویرایش =====
-    $('.cancel-row').on('click', function () {
-      const rowId = $(this).data('id');
-      cancelEditing(rowId);
-    });
-
-    function cancelEditing(rowId) {
-      const row = $(`tr[data-id="${rowId}"]`);
-
-      // برگردوندن مقادیر اصلی
-      row.find('.editable-cell.editing').each(function () {
-        const field = $(this).data('field');
-        const originalValue = originalValues[rowId][field];
-        $(this).find('.cell-value').text(originalValue);
-        $(this).removeClass('editing');
-      });
-
-      endEditing(row);
-      showToast('Editing cancelled', 'info');
-    }
-
-    // ===== پایان ویرایش =====
-    function endEditing(row) {
-      row.removeClass('editing-row');
-      editingRow = null;
-
-      // مخفی کردن دکمه Save All اگر ردیفی در حال ویرایش نیست
-      if ($('.editing-row').length === 0) {
-        $('#save-all-btn').hide();
-      }
-    }
-
-    // ===== ذخیره همه تغییرات =====
-    $('#save-all-btn').on('click', function () {
-      if (editingRow) {
-        saveRow(editingRow);
-      }
-    });
-
-    // ===== قابلیت سرچ =====
-    $('#search-input').on('keyup', function () {
-      const searchTerm = $(this).val().toLowerCase();
-
-      if (searchTerm.length > 0) {
-        $('#clear-search').show();
-      } else {
-        $('#clear-search').hide();
-      }
-
-      $('.transaction-row').each(function () {
-        const row = $(this);
-        const invoice = row.find('td:first').text().toLowerCase();
-        const customer = row.find('td:eq(2)').text().toLowerCase();
-        const item = row.find('td:eq(5)').text().toLowerCase();
-        const code = row.find('td:eq(3)').text().toLowerCase();
-
-        if (invoice.includes(searchTerm) ||
-          customer.includes(searchTerm) ||
-          item.includes(searchTerm) ||
-          code.includes(searchTerm)) {
-          row.show();
-        } else {
-          row.hide();
-        }
-      });
-    });
-
-    // ===== پاک کردن سرچ =====
-    $('#clear-search').on('click', function () {
-      $('#search-input').val('').trigger('keyup');
-      $(this).hide();
-    });
-
-    // ===== فیلترهای سریع =====
-    $('.filter-badge').on('click', function () {
-      const filter = $(this).data('filter');
-
-      // حذف کلاس active از همه
-      $('.filter-badge').removeClass('active');
-      $(this).addClass('active');
-
-      if (filter === 'today') {
-        const today = new Date().toISOString().split('T')[0];
-        window.location.href = `?start_date=${today}&end_date=${today}`;
-      } else if (filter === 'week') {
-        const today = new Date();
-        const firstDay = new Date(today.setDate(today.getDate() - today.getDay()));
-        const lastDay = new Date(today.setDate(today.getDate() - today.getDay() + 6));
-        window.location.href = `?start_date=${firstDay.toISOString().split('T')[0]}&end_date=${lastDay.toISOString().split('T')[0]}`;
-      } else if (filter === 'month') {
-        const today = new Date();
-        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        window.location.href = `?start_date=${firstDay.toISOString().split('T')[0]}&end_date=${lastDay.toISOString().split('T')[0]}`;
-      } else {
-        window.location.href = `?payment_status=${filter}`;
-      }
-    });
-
-    // ===== ابزارک‌های موجود =====
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-      return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-  });
-
-  // ===== تابع به‌روزرسانی زمان =====
-  function updateDateTime() {
-    const now = new Date();
-    const options = {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    };
-    console.log('Last updated:', now.toLocaleDateString('en-US', options));
+  // ============================================================
+  // DELETE CONFIRM
+  // ============================================================
+  function confirmDelete(invoice) {
+    return confirm(`Are you sure you want to delete transaction ${invoice}?`);
   }
-
-  // صدا زدن تابع هر 1 ثانیه
-  setInterval(updateDateTime, 1000);
 </script>
 {% endblock %}

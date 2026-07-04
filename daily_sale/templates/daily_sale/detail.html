@@ -1,35 +1,35 @@
+<!-- daily_sale/templates/daily_sale/invoice.html -->
 {% extends "daily_sale/daily_sale_base.html" %}
 {% load static %}
 {% load humanize %}
 
-{% block title %}Almuqbil | Detail{{ transaction.invoice_number }}{% endblock %}
+{% block title %}Almuqbil | Invoice {{ transaction.invoice_number }}{% endblock %}
 
 {% block content %}
 <div class="invoice-container fade-in">
     <!-- Watermark -->
     <div class="watermark no-print">
         {% if transaction.payment_status == 'paid' %}
-        <span style="color: rgba(16, 185, 129, 0.05);">PAID</span>
+        <span style="color: rgba(16, 185, 129, 0.05); font-size: 120px; font-weight: 900;">PAID</span>
         {% elif transaction.payment_status == 'partial' %}
-        <span style="color: rgba(245, 158, 11, 0.05);">PARTIAL</span>
+        <span style="color: rgba(245, 158, 11, 0.05); font-size: 120px; font-weight: 900;">PARTIAL</span>
         {% else %}
-        <span style="color: rgba(239, 68, 68, 0.05);">INVOICE</span>
+        <span style="color: rgba(239, 68, 68, 0.05); font-size: 120px; font-weight: 900;">UNPAID</span>
         {% endif %}
     </div>
 
     <!-- Header -->
     <div class="invoice-header">
-        <div class="header-pattern"></div>
         <div class="company-header">
             <div class="company-brand">
                 <div class="company-logo">
-                    <i class="fas fa-car"></i>
+                    <i class="fas fa-cubes"></i>
                 </div>
                 <div>
-                    <div class="company-name">ALMUQBIL Company</div>
+                    <div class="company-name">ALMUQBIL</div>
+                    <div class="company-sub">Inventory Management</div>
                 </div>
             </div>
-
             <div class="invoice-title-section">
                 <div class="invoice-title">INVOICE</div>
                 <div class="invoice-number">#{{ transaction.invoice_number }}</div>
@@ -41,36 +41,16 @@
     <div class="invoice-info-grid">
         <div class="info-card">
             <div class="info-card-title">
-                <i class="fas fa-user-tie"></i> BILL TO
+                <i class="fas fa-user"></i> BILL TO
             </div>
             <div class="info-row">
                 <span class="info-label">Customer:</span>
-                <span class="info-value">
-                    {% if transaction.customer %}
-                    {{ transaction.customer.user.get_full_name|default:transaction.customer.user.username|truncatechars:20 }}
-                    {% else %}
-                    <span style="color: var(--gray-400); font-style: italic;">Walk-in Customer</span>
-                    {% endif %}
-                </span>
+                <span class="info-value">{{ transaction.customer_name|default:"Walk-in Customer" }}</span>
             </div>
-            {% if transaction.customer and transaction.customer.phone %}
             <div class="info-row">
-                <span class="info-label">Phone:</span>
-                <span class="info-value">{{ transaction.customer.phone }}</span>
+                <span class="info-label">Invoice Date:</span>
+                <span class="info-value">{{ transaction.date|date:"d-M-Y" }}</span>
             </div>
-            {% endif %}
-            {% if transaction.customer and transaction.customer.email %}
-            <div class="info-row">
-                <span class="info-label">Email:</span>
-                <span class="info-value">{{ transaction.customer.email }}</span>
-            </div>
-            {% endif %}
-            {% if transaction.customer and transaction.customer.address %}
-            <div class="info-row">
-                <span class="info-label">Address:</span>
-                <span class="info-value">{{ transaction.customer.address|truncatechars:60 }}</span>
-            </div>
-            {% endif %}
         </div>
 
         <div class="info-card">
@@ -78,19 +58,11 @@
                 <i class="fas fa-file-invoice"></i> INVOICE DETAILS
             </div>
             <div class="info-row">
-                <span class="info-label">Invoice Date:</span>
-                <span class="info-value">{{ transaction.date|date:"F d, Y" }}</span>
+                <span class="info-label">Invoice #:</span>
+                <span class="info-value">{{ transaction.invoice_number }}</span>
             </div>
             <div class="info-row">
-                <span class="info-label">Due Date:</span>
-                <span class="info-value">{{ transaction.due_date|date:"F d, Y" }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Payment Terms:</span>
-                <span class="info-value">Net {{ transaction.get_payment_terms_display|default:"30" }} days</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Invoice Status:</span>
+                <span class="info-label">Status:</span>
                 <span class="info-value">
                     <span class="status-badge status-{{ transaction.payment_status }}">
                         {% if transaction.payment_status == 'paid' %}
@@ -103,23 +75,27 @@
                     </span>
                 </span>
             </div>
+            <div class="info-row">
+                <span class="info-label">Created By:</span>
+                <span class="info-value">{{ transaction.created_by.get_full_name|default:transaction.created_by.username }}</span>
+            </div>
         </div>
 
         <div class="info-card">
             <div class="info-card-title">
-                <i class="fas fa-building"></i> COMPANY DETAILS
+                <i class="fas fa-box"></i> ITEM DETAILS
             </div>
             <div class="info-row">
-                <span class="info-label">Company:</span>
-                <span class="info-value">{{ transaction.company.name|default:"Almuqbil Motors" }}</span>
+                <span class="info-label">Item:</span>
+                <span class="info-value">{{ transaction.item.product_name|default:"-" }}</span>
             </div>
             <div class="info-row">
-                <span class="info-label">Tax Rate:</span>
-                <span class="info-value">{{ transaction.tax }}%</span>
+                <span class="info-label">Code:</span>
+                <span class="info-value">{{ transaction.item.code|default:"-" }}</span>
             </div>
             <div class="info-row">
-                <span class="info-label">Created By:</span>
-                <span class="info-value">{{ transaction.created_by.get_full_name|default:transaction.created_by.username }}</span>
+                <span class="info-label">Container:</span>
+                <span class="info-value">{{ transaction.container.container_no|default:"-" }}</span>
             </div>
         </div>
     </div>
@@ -127,10 +103,7 @@
     <!-- Products Section -->
     <div class="products-section">
         <div class="section-title">
-            <i class="fas fa-boxes"></i> PRODUCTS & SERVICES
-            <span style="font-size: 14px; color: rgba(255,255,255,0.9); font-weight: 400; margin-left: auto;">
-                {{ items|length }} Item{{ items|length|pluralize }}
-            </span>
+            <i class="fas fa-boxes"></i> PRODUCT DETAILS
         </div>
 
         <div class="table-responsive">
@@ -138,90 +111,53 @@
                 <thead>
                     <tr>
                         <th style="width: 50px;">#</th>
-                        <th>PRODUCT DETAILS</th>
-                        <th class="text-center" style="width: 100px;">QTY</th>
+                        <th>PRODUCT</th>
+                        <th class="text-center" style="width: 80px;">QTY</th>
                         <th class="text-right" style="width: 130px;">UNIT PRICE</th>
                         <th class="text-right" style="width: 130px;">DISCOUNT</th>
-                        <th class="text-right" style="width: 130px;">TAX</th>
-                        <th class="text-left" style="width: 140px;">TOTAL</th>
+                        <th class="text-right" style="width: 130px;">TOTAL</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for item in items %}
                     <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td class="product-cell">
-                            <div class="product-name">{{ item.item.product_name }}</div>
+                        <td>1</td>
+                        <td>
+                            <div class="product-name">{{ transaction.item.product_name|default:"-" }}</div>
                             <div class="product-details">
-                                {% if item.item.code %}
                                 <span class="detail-chip">
-                                    <i class="fas fa-hashtag"></i> Code: {{ item.item.code }}
+                                    <i class="fas fa-hashtag"></i> Code: {{ transaction.item.code|default:"-" }}
                                 </span>
-                                {% endif %}
-                                {% if item.item.model %}
+                                {% if transaction.item.container %}
                                 <span class="detail-chip">
-                                    <i class="fas fa-cog"></i> Model: {{ item.item.model }}
-                                </span>
-                                {% endif %}
-                                {% if item.item.brand %}
-                                <span class="detail-chip">
-                                    <i class="fas fa-tag"></i> Brand: {{ item.item.brand }}
-                                </span>
-                                {% endif %}
-                                {% if item.item.category %}
-                                <span class="detail-chip">
-                                    <i class="fas fa-folder"></i> {{ item.item.category.name }}
-                                </span>
-                                {% endif %}
-                                {% if item.container %}
-                                <span class="detail-chip" style="background: rgba(254, 243, 199, 0.3); color: #92400e; border: 1px solid rgba(146, 64, 14, 0.2);">
-                                    <i class="fas fa-box"></i> {{ item.container.name }}
+                                    <i class="fas fa-box"></i> Container: {{ transaction.item.container.container_no }}
                                 </span>
                                 {% endif %}
                             </div>
-                            {% if item.item.description %}
-                            <div style="margin-top: 8px; font-size: 12px; color: var(--gray-500); padding-left: 5px; border-left: 2px solid var(--gray-300);">
-                                <i class="fas fa-align-left" style="margin-right: 5px;"></i>
-                                {{ item.item.description|truncatechars:120 }}
+                            {% if transaction.item_description %}
+                            <div style="margin-top: 8px; font-size: 12px; color: #6b7a72;">
+                                <i class="fas fa-align-left"></i> {{ transaction.item_description }}
                             </div>
                             {% endif %}
                         </td>
                         <td class="text-center">
-                            <span class="quantity-badge">
-                                {{ item.quantity }}
-                            </span>
+                            <span class="quantity-badge">{{ transaction.qty }}</span>
                         </td>
                         <td class="text-right" style="font-weight: 700;">
-                            {{ item.unit_price|floatformat:0|intcomma }} 
-                            <span style="color: var(--gray-500); font-size: 12px;">AED</span>
+                            {{ transaction.sales|floatformat:2|intcomma }} AED
                         </td>
                         <td class="text-right">
-                            {% if item.discount %}
-                            <span style="color: var(--accent-red); font-weight: 700;">
-                                <i class="fas fa-minus-circle"></i> {{ item.discount|floatformat:0|intcomma }} 
-                                <span style="color: var(--gray-500); font-size: 12px;">AED</span>
+                            {% if transaction.discount > 0 %}
+                            <span style="color: #e74c3c; font-weight: 700;">
+                                -{{ transaction.discount|floatformat:2|intcomma }} AED
                             </span>
                             {% else %}
-                            <span style="color: var(--gray-400);">-</span>
+                            <span style="color: #aaa;">-</span>
                             {% endif %}
                         </td>
-                        <td class="text-right" style="color: var(--accent-green); font-weight: 700;">
-                            <i class="fas fa-percentage"></i> {{ item.tax_amount|floatformat:0|intcomma }} 
-                            <span style="color: var(--gray-500); font-size: 12px;">AED</span>
-                        </td>
-                        <td class="text-right" style="font-weight: 800; color: var(--primary-blue);">
-                            {{ item.total_amount|floatformat:0|intcomma }} 
-                            <span style="color: var(--gray-500); font-size: 12px;">AED</span>
+                        <td class="text-right" style="font-weight: 800; color: #1a3d2f;">
+                            {{ transaction.total|floatformat:2|intcomma }} AED
                         </td>
                     </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="7" class="text-center" style="padding: 50px;">
-                            <i class="fas fa-box-open fa-3x" style="color: var(--gray-300); margin-bottom: 20px;"></i>
-                            <div style="color: var(--gray-400); font-size: 1.1rem;">No products found in this invoice</div>
-                        </td>
-                    </tr>
-                    {% endfor %}
                 </tbody>
             </table>
         </div>
@@ -251,78 +187,55 @@
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">Payment Method:</span>
-                    <span class="info-value">
-                        <i class="fas fa-{{ transaction.payment_method|default:'money-bill' }}"></i>
-                        {{ transaction.get_payment_method_display|default:"Cash" }}
-                    </span>
+                    <span class="info-label">Paid Amount:</span>
+                    <span class="info-value">{{ transaction.paid|floatformat:2|intcomma }} AED</span>
                 </div>
 
+                {% if transaction.payment_status != 'paid' and transaction.total > 0 %}
                 <div class="payment-progress">
                     <div class="progress-label">
                         <span>Payment Progress</span>
-                        <span style="color: var(--primary-blue); font-weight: 700;">{{ paid_percentage|floatformat:1 }}%</span>
+                        <span style="color: #1a3d2f; font-weight: 700;">{{ transaction.paid_percentage|floatformat:1 }}%</span>
                     </div>
                     <div class="progress-bar">
-                        <div class="progress-fill"></div>
+                        <div class="progress-fill" style="width: {{ transaction.paid_percentage }}%;"></div>
                     </div>
-                </div>
-
-                <div class="info-row">
-                    <span class="info-label">Days Passed:</span>
-                    <span class="info-value {% if days_passed > 30 %}text-danger{% endif %}">
-                        {% if days_passed > 30 %}
-                        <i class="fas fa-exclamation-triangle"></i>
-                        {% endif %}
-                        {{ days_passed }} days
-                    </span>
-                </div>
-
-                {% if transaction.note %}
-                <div style="margin-top: 25px; padding: 1rem; background: var(--gray-100); border-radius: var(--radius-md); border-left: 4px solid var(--primary-blue);">
-                    <div style="font-size: 13px; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fas fa-sticky-note"></i> Notes:
-                    </div>
-                    <div style="font-size: 14px; color: var(--gray-600); line-height: 1.5;">{{ transaction.note }}</div>
                 </div>
                 {% endif %}
             </div>
 
             <div class="amount-card">
-                <div style="font-size: 1.3rem; font-weight: 700; color: white; margin-bottom: 25px; display: flex; align-items: center; gap: 12px;">
+                <div style="font-size: 1.3rem; font-weight: 700; color: white; margin-bottom: 20px;">
                     <i class="fas fa-calculator"></i> AMOUNT SUMMARY
                 </div>
 
                 <div class="amount-row">
-                    <span class="amount-label">Subtotal:</span>
-                    <span class="amount-value">{{ subtotal|floatformat:0|intcomma }} AED</span>
+                    <span class="amount-label">Subtotal (Sales):</span>
+                    <span class="amount-value">{{ transaction.sales|floatformat:2|intcomma }} AED</span>
                 </div>
 
-                {% if discount_total > 0 %}
+                {% if transaction.discount > 0 %}
                 <div class="amount-row">
-                    <span class="amount-label">Total Discount:</span>
-                    <span class="amount-value text-danger">-{{ discount_total|floatformat:0|intcomma }} AED</span>
+                    <span class="amount-label">Discount:</span>
+                    <span class="amount-value text-danger">-{{ transaction.discount|floatformat:2|intcomma }} AED</span>
                 </div>
                 {% endif %}
 
-                <div class="amount-row">
-                    <span class="amount-label">Tax ({{ transaction.tax }}%):</span>
-                    <span class="amount-value text-success">{{ tax_amount|floatformat:0|intcomma }} AED</span>
-                </div>
-
                 <div class="amount-row total-row">
-                    <span class="amount-label">TOTAL AMOUNT:</span>
-                    <span class="amount-value">{{ total_amount|floatformat:0|intcomma }} AED</span>
+                    <span class="amount-label">TOTAL:</span>
+                    <span class="amount-value">{{ transaction.total|floatformat:2|intcomma }} AED</span>
                 </div>
 
                 <div class="amount-row paid-row">
                     <span class="amount-label">Amount Paid:</span>
-                    <span class="amount-value">{{ advance|floatformat:0|intcomma }} AED</span>
+                    <span class="amount-value">{{ transaction.paid|floatformat:2|intcomma }} AED</span>
                 </div>
 
                 <div class="amount-row due-row">
                     <span class="amount-label">BALANCE DUE:</span>
-                    <span class="amount-value">{{ balance|floatformat:0|intcomma }} AED</span>
+                    <span class="amount-value {% if transaction.balance > 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{ transaction.balance|floatformat:2|intcomma }} AED
+                    </span>
                 </div>
             </div>
         </div>
@@ -330,16 +243,14 @@
 
     <!-- Footer -->
     <div class="invoice-footer">
-
         <div class="invoice-meta">
             <div>
                 <i class="far fa-file-alt"></i> Invoice #{{ transaction.invoice_number }}
-                | {{ transaction.date|date:"Y-m-d" }}
+                | {{ transaction.date|date:"d-M-Y" }}
             </div>
             <div>
                 <i class="far fa-user"></i> 
                 {{ transaction.created_by.get_full_name|default:transaction.created_by.username }}
-                | Computer Generated Invoice
             </div>
         </div>
     </div>
@@ -352,111 +263,32 @@
         <a href="{% url 'daily_sale:transaction_list' %}" class="btn btn-outline">
             <i class="fas fa-arrow-left"></i> Back to Transactions
         </a>
-        <button onclick="downloadAsPDF()" class="btn btn-outline">
-            <i class="fas fa-file-pdf"></i> Save as PDF
-        </button>
     </div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Auto-print if URL parameter exists
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('print') === 'true') {
-            setTimeout(() => {
-                window.print();
-            }, 1000);
-        }
 
-        // Add animation to progress bar
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Animate progress bar
         const progressFill = document.querySelector('.progress-fill');
         if (progressFill) {
-            const currentWidth = progressFill.style.width;
+            const width = progressFill.style.width;
             progressFill.style.width = '0';
             setTimeout(() => {
-                progressFill.style.width = currentWidth;
-            }, 500);
+                progressFill.style.width = width;
+            }, 300);
         }
 
-        // Add loading animation
-        setTimeout(() => {
-            document.querySelectorAll('.fade-in').forEach(el => {
-                el.style.opacity = '1';
-                el.style.transform = 'translateY(0)';
-            });
-        }, 100);
-
-        // Add hover effects to all interactive elements
-        document.querySelectorAll('.info-card, .products-section, .payment-status-card').forEach(card => {
-            card.addEventListener('mouseenter', () => {
-                card.style.zIndex = '10';
-            });
-            card.addEventListener('mouseleave', () => {
-                card.style.zIndex = '1';
-            });
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                e.preventDefault();
+                window.print();
+            }
+            if (e.key === 'Escape') {
+                window.location.href = "{% url 'daily_sale:transaction_list' %}";
+            }
         });
     });
-
-    // PDF download function
-    function downloadAsPDF() {
-        const invoiceElement = document.querySelector('.invoice-container');
-        const buttons = document.querySelector('.action-buttons');
-        const watermark = document.querySelector('.watermark');
-        
-        // Show watermark for PDF
-        if (watermark) {
-            watermark.style.opacity = '0.1';
-        }
-        
-        // Hide buttons for PDF
-        if (buttons) {
-            buttons.style.display = 'none';
-        }
-        
-        // Use html2canvas and jsPDF for PDF generation
-        if (typeof html2canvas !== 'undefined' && typeof jspdf !== 'undefined') {
-            html2canvas(invoiceElement).then(canvas => {
-                const imgData = canvas.toDataURL('image/png');
-                const pdf = new jspdf.jsPDF('p', 'mm', 'a4');
-                const imgWidth = 210;
-                const imgHeight = canvas.height * imgWidth / canvas.width;
-                
-                pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-                pdf.save('invoice-' + document.querySelector('.invoice-number').textContent + '.pdf');
-                
-                // Restore original state
-                if (buttons) {
-                    buttons.style.display = 'flex';
-                }
-                if (watermark) {
-                    watermark.style.opacity = '0.8';
-                }
-            });
-        } else {
-            alert('PDF generation libraries not loaded. Please install html2canvas and jspdf.');
-        }
-    }
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-        // Ctrl + P for print
-        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
-            e.preventDefault();
-            window.print();
-        }
-        // Ctrl + S for save as PDF
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-            e.preventDefault();
-            downloadAsPDF();
-        }
-        // Escape to go back
-        if (e.key === 'Escape') {
-            window.location.href = "{% url 'daily_sale:transaction_list' %}";
-        }
-    });
 </script>
-
-<!-- Include PDF generation libraries -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 {% endblock %}

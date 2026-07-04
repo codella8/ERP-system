@@ -43,7 +43,6 @@ INSTALLED_APPS = [
     'containers',
     'accounts',
     'reports',
-    'expenses',
     'employee',
 ]
 

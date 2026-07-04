@@ -1,0 +1,260 @@
+{% extends 'inout/report_base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Almuqbil | In-Out Report{% endblock %}
+{% block content %}
+
+<div class="rpt-header">
+    <div class="rpt-header-left">
+        <h1><i class="fas fa-chart-pie"></i> In-Out Report</h1>
+        <div class="subtitle">Real-time financial & inventory dashboard</div>
+    </div>
+    <a href="{% url 'reports:export_csv' %}?range={{ active_range }}&start={{ start_date|date:'Y-m-d' }}&end={{ end_date|date:'Y-m-d' }}" class="btn-export">
+        <i class="fas fa-file-export"></i> Export CSV
+    </a>
+</div>
+
+<!-- ===== FILTER ===== -->
+<div class="rpt-filter">
+    <div class="quick">
+        <a href="?range=today" class="{% if active_range == 'today' %}active{% endif %}">Today</a>
+        <a href="?range=week" class="{% if active_range == 'week' %}active{% endif %}">This Week</a>
+        <a href="?range=month" class="{% if active_range == 'month' %}active{% endif %}">This Month</a>
+        <a href="?range=year" class="{% if active_range == 'year' %}active{% endif %}">This Year</a>
+    </div>
+
+    <div class="divider"></div>
+
+    <form method="get" class="custom">
+        <label for="start">From</label>
+        <input type="date" id="start" name="start" value="{{ start_date|date:'Y-m-d' }}">
+        <label for="end">To</label>
+        <input type="date" id="end" name="end" value="{{ end_date|date:'Y-m-d' }}">
+        <button type="submit" class="btn-apply">Apply</button>
+    </form>
+
+    <div class="range-label">
+        Showing: <strong>{{ start_date|date:"d-M-y" }}</strong> → <strong>{{ end_date|date:"d-M-y" }}</strong>
+    </div>
+</div>
+
+<!-- ===== KPI ===== -->
+<div class="rpt-kpi">
+    <div class="card">
+        <div class="icon"><i class="fas fa-chart-line"></i></div>
+        <div class="label">Total Sales</div>
+        <div class="value">AED {{ kpis.total_sales|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="card expenses">
+        <div class="icon"><i class="fas fa-arrow-up"></i></div>
+        <div class="label">Total Expenses</div>
+        <div class="value">AED {{ kpis.total_expenses|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="card profit">
+        <div class="icon"><i class="fas fa-coins"></i></div>
+        <div class="label">Net Profit</div>
+        <div class="value {% if kpis.net_profit >= 0 %}text-positive{% else %}text-negative{% endif %}">
+            AED {{ kpis.net_profit|floatformat:2|intcomma }}
+        </div>
+    </div>
+    <div class="card cashin">
+        <div class="icon"><i class="fas fa-arrow-down"></i></div>
+        <div class="label">Total Cash-In</div>
+        <div class="value">AED {{ kpis.total_cash_in|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="card cashout">
+        <div class="icon"><i class="fas fa-arrow-up"></i></div>
+        <div class="label">Total Cash-Out</div>
+        <div class="value">AED {{ kpis.total_cash_out|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="card inventory">
+        <div class="icon"><i class="fas fa-boxes"></i></div>
+        <div class="label">Total Inventory Value</div>
+        <div class="value">AED {{ kpis.total_inventory_value|floatformat:2|intcomma }}</div>
+    </div>
+    <div class="card items">
+        <div class="icon"><i class="fas fa-cube"></i></div>
+        <div class="label">Total Items</div>
+        <div class="value">{{ kpis.total_items|intcomma }}</div>
+    </div>
+    <div class="card containers">
+        <div class="icon"><i class="fas fa-ship"></i></div>
+        <div class="label">Total Containers</div>
+        <div class="value">{{ kpis.total_containers|intcomma }}</div>
+    </div>
+</div>
+
+
+<!-- ===== CHART ===== -->
+<div class="rpt-chart">
+    <div class="title">
+        <i class="fas fa-chart-bar"></i> Sales vs Expenses
+        <span class="date-range">{{ start_date|date:"d-M-y" }} — {{ end_date|date:"d-M-y" }}</span>
+    </div>
+    <div class="wrapper" style="position:relative; min-height:300px;">
+        <canvas id="salesExpensesChart"></canvas>
+        {% if not chart_labels or chart_labels|length == 0 or chart_labels|join:"" == "No Data" %}
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; color:#aaa; font-size:16px; pointer-events:none; font-family:'Inter',sans-serif;">
+            <i class="fas fa-chart-simple" style="font-size:48px; display:block; margin-bottom:12px; color:#d0d7d4;"></i>
+            <span>No data available for this period</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ===== TABLE ===== -->
+<div class="rpt-table">
+    <div class="title">
+        <i class="fas fa-file-invoice-dollar"></i> Financial Summary
+        <span class="badge">{{ financial_rows|length }} days</span>
+    </div>
+    <div class="scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th class="text-right">Sales (AED)</th>
+                    <th class="text-right">Expenses (AED)</th>
+                    <th class="text-right">Profit (AED)</th>
+                    <th class="text-right">Cash-In (AED)</th>
+                    <th class="text-right">Cash-Out (AED)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in financial_rows %}
+                <tr>
+                    <td>{{ row.date|date:"d-M-y" }}</td>
+                    <td class="text-right">{{ row.sales|floatformat:2|intcomma }}</td>
+                    <td class="text-right">{{ row.expenses|floatformat:2|intcomma }}</td>
+                    <td class="text-right {% if row.profit >= 0 %}text-positive{% else %}text-negative{% endif %}">
+                        {{ row.profit|floatformat:2|intcomma }}
+                    </td>
+                    <td class="text-right">{{ row.cash_in|floatformat:2|intcomma }}</td>
+                    <td class="text-right">{{ row.cash_out|floatformat:2|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center" style="padding:24px; color:var(--rpt-text-muted);">
+                        No data available for this period
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><strong>TOTAL</strong></td>
+                    <td class="text-right"><strong>{{ financial_totals.sales|floatformat:2|intcomma }}</strong></td>
+                    <td class="text-right"><strong>{{ financial_totals.expenses|floatformat:2|intcomma }}</strong></td>
+                    <td class="text-right {% if financial_totals.profit >= 0 %}text-positive{% else %}text-negative{% endif %}">
+                        <strong>{{ financial_totals.profit|floatformat:2|intcomma }}</strong>
+                    </td>
+                    <td class="text-right"><strong>{{ financial_totals.cash_in|floatformat:2|intcomma }}</strong></td>
+                    <td class="text-right"><strong>{{ financial_totals.cash_out|floatformat:2|intcomma }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<!-- ===== STATUS ===== -->
+<div class="rpt-status">
+    <span><i class="fas fa-database"></i> Real-time data · Updated: {% now "d-M-y H:i" %}</span>
+    <span><i class="fas fa-calendar-alt"></i> {{ start_date|date:"d-M-y" }} — {{ end_date|date:"d-M-y" }}</span>
+    <span><i class="fas fa-file-invoice"></i> {{ financial_rows|length }} days · {{ kpis.total_items|intcomma }} items</span>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" defer></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function initChart() {
+            if (typeof Chart === 'undefined') {
+                setTimeout(initChart, 200);
+                return;
+            }
+            
+            const ctx = document.getElementById('salesExpensesChart');
+            if (!ctx) return;
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: {{ chart_labels|safe }},
+                    datasets: [
+                        {
+                            label: 'Sales (AED)',
+                            data: {{ chart_sales|safe }},
+                            backgroundColor: 'rgba(26, 61, 47, 0.75)',
+                            borderColor: 'rgba(26, 61, 47, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.6,
+                        },
+                        {
+                            label: 'Expenses (AED)',
+                            data: {{ chart_expenses|safe }},
+                            backgroundColor: 'rgba(231, 76, 60, 0.7)',
+                            borderColor: 'rgba(231, 76, 60, 1)',
+                            borderWidth: 1,
+                            borderRadius: 4,
+                            barPercentage: 0.6,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: { size: 12, weight: '500', family: 'Inter' },
+                                boxWidth: 14,
+                                boxHeight: 14,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': AED ' + context.parsed.y.toLocaleString(undefined, {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    });
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return 'AED ' + value.toLocaleString();
+                                },
+                                font: { size: 11 }
+                            },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true, maxTicksLimit: 20 }
+                        }
+                    },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        setTimeout(initChart, 100);
+    });
+</script>
+{% endblock %}

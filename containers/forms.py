@@ -1,121 +1,171 @@
 # forms.py
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import Container, Inventory_List, Company
+from django.db.models import Sum
 from decimal import Decimal
+from .models import Container, Inventory_List
+
+# ============================================
+# فرم‌های Container
+# ============================================
 
 class ContainerForm(forms.ModelForm):
-    transport_company = forms.ModelChoiceField(
-        queryset=Company.objects.all(),
-        required=False,
-        empty_label="Select Transport Company",
-        widget=forms.Select(attrs={
-            'class': 'form-control excel-select',
-            'data-field': 'transport_company'
-        })
-    )
+    """
+    فرم اصلی کانتینر - دقیقاً مطابق فیلدهای اکسل کارفرما
+    """
     
     class Meta:
         model = Container
         fields = [
-            'container_number',  # Container Name/Number
-            'name',              
-            'code',              
-            'arrival_date',       # Arrival Date
-            'transport_status',   # Status (In Transit, Arrived)
-            'supplier',           # Transport Company
-            'description',        
+            'supplier',           # تامین‌کننده (Active, T Wicki, Car Click, Xpress)
+            'container_no',       # شماره کانتینر (MRSU-5724751)
+            'code',               # کد کانتینر (G50, U19, F6, E31...)
+            'arrival_date',       # تاریخ ورود (Jan 31, Jan 22...)
         ]
         widgets = {
-            'container_number': forms.TextInput(attrs={
+            'supplier': forms.TextInput(attrs={
                 'class': 'form-control excel-input',
-                'placeholder': 'e.g., CNT-001',
-                'data-field': 'container_number',
+                'placeholder': 'e.g., Active, T Wicki, Car Click',
+                'data-field': 'supplier',
+                'autocomplete': 'off'
+            }),
+            'container_no': forms.TextInput(attrs={
+                'class': 'form-control excel-input',
+                'placeholder': 'e.g., MRSU-5724751',
+                'data-field': 'container_no',
                 'autofocus': True
             }),
-            'name': forms.TextInput(attrs={
-                'class': 'form-control excel-input',
-                'placeholder': 'Container name (optional)',
-                'data-field': 'name'
-            }),
-            'code': forms.TextInput(attrs={ 
+            'code': forms.TextInput(attrs={
                 'class': 'form-control excel-input',
                 'placeholder': 'e.g., G50',
                 'data-field': 'code'
             }),
-            'arrival_date': forms.DateInput(attrs={
+            'arrival_date': forms.TextInput(attrs={
                 'class': 'form-control excel-input',
-                'type': 'date',
+                'placeholder': 'e.g., Jan 31, Feb 8',
                 'data-field': 'arrival_date'
             }),
-            'transport_status': forms.Select(attrs={
-                'class': 'form-control excel-select',
-                'data-field': 'transport_status'
-            }),
-            'supplier': forms.TextInput(attrs={
-                'class': 'form-control excel-input',
-                'placeholder': 'Transport company name',
-                'data-field': 'supplier'
-            }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control excel-input',
-                'rows': 2,
-                'placeholder': 'Additional notes...',
-                'data-field': 'description'
-            }),
         }
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # تنظیم وضعیت‌های حمل و نقل 
-        self.fields['transport_status'].choices = [
-            ('in_transit', ' In Transit'),
-            ('arrived', ' Arrived'),
-            ('awaiting', ' Awaiting'),
-            ('cleared', ' Cleared'),
-        ]
-        self.fields['transport_status'].initial = 'awaiting'
-        
-        # برچسب‌ها
-        self.fields['container_number'].label = 'Container Number'
-        self.fields['name'].label = 'Container Name (Optional)'
-        self.fields['code'].label = 'Code'  
+        # تنظیم برچسب‌ها (مطابق با اکسل)
+        self.fields['supplier'].label = 'Supplier'
+        self.fields['container_no'].label = 'Container No.'
+        self.fields['code'].label = 'Code'
         self.fields['arrival_date'].label = 'Arrival Date'
-        self.fields['transport_status'].label = 'Status'
-        self.fields['supplier'].label = 'Transport Company'
-        self.fields['transport_company'].label = 'Select Transport Company'
-        self.fields['description'].label = 'Notes'
-
-    def clean_container_number(self):
-        """اعتبارسنجی شماره کانتینر (یکتا)"""
-        container_number = self.cleaned_data['container_number']
-        if not container_number:
-            raise ValidationError("Container number is required")
+        
+        # فیلدهای فقط خواندنی (برای نمایش در فرم ویرایش)
+        if self.instance and self.instance.pk:
+            self.fields['total_sales'] = forms.DecimalField(
+                initial=self.instance.total_sales,
+                disabled=True,
+                required=False,
+                widget=forms.NumberInput(attrs={'class': 'form-control bg-light'})
+            )
+            self.fields['total_expenses'] = forms.DecimalField(
+                initial=self.instance.total_expenses,
+                disabled=True,
+                required=False,
+                widget=forms.NumberInput(attrs={'class': 'form-control bg-light'})
+            )
+            self.fields['net_value'] = forms.DecimalField(
+                initial=self.instance.net_value,
+                disabled=True,
+                required=False,
+                widget=forms.NumberInput(attrs={'class': 'form-control bg-light fw-bold'})
+            )
+    
+    def clean_container_no(self):
+        """اعتبارسنجی شماره کانتینر - یکتا و الزامی"""
+        container_no = self.cleaned_data.get('container_no', '').strip().upper()
+        
+        if not container_no:
+            raise ValidationError('Container number is required')
         
         # بررسی یکتا بودن
-        qs = Container.objects.filter(container_number=container_number)
+        queryset = Container.objects.filter(container_no=container_no)
         if self.instance and self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
+            queryset = queryset.exclude(pk=self.instance.pk)
         
-        if qs.exists():
-            raise ValidationError(f"Container '{container_number}' already exists")
+        if queryset.exists():
+            raise ValidationError(f'Container "{container_no}" already exists')
         
-        return container_number.upper() 
+        return container_no
+    
+    def clean_code(self):
+        """کد کانتینر - اختیاری ولی یکتا در ترکیب با شماره"""
+        code = self.cleaned_data.get('code', '').strip().upper()
+        return code if code else None
+    
+    def clean_arrival_date(self):
+        """تاریخ ورود - فرمت آزاد (مثل Jan 31)"""
+        arrival_date = self.cleaned_data.get('arrival_date', '').strip()
+        return arrival_date if arrival_date else None
 
 
+class ContainerFilterForm(forms.Form):
+    """
+    فرم فیلتر و جستجوی کانتینرها
+    """
+    search = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Search by container no., code, or supplier...'
+        })
+    )
+    
+    supplier = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Supplier name'
+        })
+    )
+    
+    code = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Code (G50, U19...)'
+        })
+    )
+    
+    date_from = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Arrival date from (e.g., Jan 1)'
+        })
+    )
+    
+    date_to = forms.CharField(
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Arrival date to (e.g., Dec 31)'
+        })
+    )
+
+
+# ============================================
+# فرم‌های Inventory (موجودی)
+# ============================================
 
 class InventoryItemForm(forms.ModelForm):
-    """فرم آیتم‌های موجودی داخل کانتینر"""
+    """
+    فرم آیتم‌های موجودی - مطابق با اکسل Daily Sales
+    """
     
     class Meta:
         model = Inventory_List
         fields = [
-            'product_name',  # نام محصول
-            'code',          # کد محصول
-            'in_stock_qty',  # تعداد
-            'unit_price',    # قیمت واحد
-            'description',   # توضیحات
+            'product_name',   # نام محصول (Bidford G21-1, 4JJ2 MQ139...)
+            'code',           # کد محصول
+            'unit_price',     # قیمت واحد (Sold Price در اکسل)
+            'in_stock_qty',   # موجودی اولیه (Qty در اکسل)
         ]
         widgets = {
             'product_name': forms.TextInput(attrs={
@@ -128,47 +178,86 @@ class InventoryItemForm(forms.ModelForm):
                 'placeholder': 'Product code',
                 'data-field': 'code'
             }),
-            'in_stock_qty': forms.NumberInput(attrs={
-                'class': 'form-control excel-input qty-input',
-                'step': '1',
-                'min': '0',
-                'data-field': 'in_stock_qty'
-            }),
             'unit_price': forms.NumberInput(attrs={
-                'class': 'form-control excel-input price-input',
+                'class': 'form-control excel-input price-input text-end',
                 'step': '0.01',
                 'min': '0',
+                'placeholder': '0.00',
                 'data-field': 'unit_price',
                 'data-type': 'currency'
             }),
-            'description': forms.TextInput(attrs={
-                'class': 'form-control excel-input',
-                'placeholder': 'Short description',
-                'data-field': 'description'
+            'in_stock_qty': forms.NumberInput(attrs={
+                'class': 'form-control excel-input qty-input text-end',
+                'step': '1',
+                'min': '0',
+                'placeholder': '0',
+                'data-field': 'in_stock_qty'
             }),
         }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['in_stock_qty'].label = 'Quantity'
-        self.fields['unit_price'].label = 'Unit Price (AED)'
-
-
-class InventoryItemFormSet(forms.BaseInlineFormSet):
-    """فرم‌ست برای مدیریت چند آیتم"""
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.total_value = 0
-        self.total_qty = 0
+        
+        self.fields['product_name'].label = 'Items'
+        self.fields['code'].label = 'Code'
+        self.fields['unit_price'].label = 'Sold Price'
+        self.fields['in_stock_qty'].label = 'Qty'
+        
+        # فیلدهای محاسباتی فقط خواندنی (برای نمایش)
+        if self.instance and self.instance.pk:
+            self.fields['total_sold'] = forms.IntegerField(
+                initial=self.instance.total_sold_qty,
+                disabled=True,
+                required=False,
+                widget=forms.NumberInput(attrs={'class': 'form-control bg-light text-end'})
+            )
+            self.fields['in_stock'] = forms.IntegerField(
+                initial=self.instance.in_stock,
+                disabled=True,
+                required=False,
+                widget=forms.NumberInput(attrs={'class': 'form-control bg-light text-end fw-bold'})
+            )
+    
+    def clean_product_name(self):
+        """نام محصول الزامی است"""
+        name = self.cleaned_data.get('product_name', '').strip()
+        if not name:
+            raise ValidationError('Product name is required')
+        return name
+    
+    def clean_unit_price(self):
+        """قیمت واحد - حداقل 0"""
+        price = self.cleaned_data.get('unit_price', 0)
+        if price < 0:
+            raise ValidationError('Price cannot be negative')
+        return price
+    
+    def clean_in_stock_qty(self):
+        """موجودی - عدد صحیح و نامنفی"""
+        qty = self.cleaned_data.get('in_stock_qty', 0)
+        if qty < 0:
+            raise ValidationError('Quantity cannot be negative')
+        return int(qty) if qty else 0
 
+
+class InventoryItemFormSet(forms.BaseInlineFormSet):
+    """
+    فرم‌ست برای مدیریت چند آیتم در یک کانتینر
+    با محاسبات خودکار مجموع ارزش و تعداد
+    """
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.total_value = Decimal('0')
+        self.total_qty = 0
+    
     def clean(self):
-        """اعتبارسنجی و محاسبات خودکار"""
+        """اعتبارسنجی کل فرم‌ست و محاسبه مجموع ارزش"""
         if any(self.errors):
             return
         
         products = []
-        total_value = 0
+        total_value = Decimal('0')
         total_qty = 0
         
         for form in self.forms:
@@ -178,112 +267,148 @@ class InventoryItemFormSet(forms.BaseInlineFormSet):
                 qty = form.cleaned_data.get('in_stock_qty', 0)
                 price = form.cleaned_data.get('unit_price', 0)
                 
-                # محاسبه مجموع
+                # محاسبه ارزش کل
                 if qty and price:
-                    total_value += float(qty) * float(price)
-                    total_qty += float(qty) if qty else 0
+                    total_value += Decimal(str(qty)) * Decimal(str(price))
+                    total_qty += int(qty) if qty else 0
                 
-                # بررسی تکراری نبودن
+                # بررسی تکراری نبودن محصولات
                 if product_name and code:
                     if (product_name, code) in products:
                         raise ValidationError(
-                            f"Duplicate item: {product_name} with code {code}"
+                            f'Duplicate item: "{product_name}" with code "{code}"'
                         )
                     products.append((product_name, code))
         
         self.total_value = total_value
         self.total_qty = total_qty
+    
+    def save(self, commit=True):
+        """ذخیره با به‌روزرسانی خودکار کانتینر"""
+        instances = super().save(commit=False)
+        
+        if commit:
+            for instance in instances:
+                instance.save()
+            
+            # به‌روزرسانی total_sales کانتینر (از مجموع آیتم‌ها)
+            if self.instance and self.instance.pk:
+                total_inventory_value = Inventory_List.objects.filter(
+                    container=self.instance
+                ).aggregate(
+                    total=Sum('in_stock_qty') * Sum('unit_price')
+                )['total'] or 0
+                # توجه: total_sales از DailySaleTransaction محاسبه می‌شود
+                # اینجا فقط ارزش موجودی را محاسبه می‌کنیم
+        
+        return instances
 
 
-# فرم‌ست برای آیتم‌های موجودی (هر کانتینر چند آیتم داشته باشه)
-InventoryItemInlineFormSet = forms.inlineformset_factory(
+# inline formset برای اضافه کردن آیتم‌های موجودی به فرم کانتینر
+InventoryInlineFormSet = forms.inlineformset_factory(
     Container,
     Inventory_List,
     form=InventoryItemForm,
     formset=InventoryItemFormSet,
-    extra=5,           # ۵ ردیف خالی برای آیتم‌های جدید
-    can_delete=True,   # قابلیت حذف
-    min_num=1,         # حداقل ۱ آیتم
+    extra=5,
+    can_delete=True,
+    min_num=1,
     validate_min=True
 )
 
 
-class ContainerFilterForm(forms.Form):
-    """فرم فیلتر برای صفحه لیست کانتینرها"""
-    
-    STATUS_CHOICES = [
-        ('', 'All Status'),
-        ('in_transit', ' In Transit'),
-        ('arrived', ' Arrived'),
-        ('awaiting', ' Awaiting'),
-        ('cleared', ' Cleared'),
-    ]
-    
-    search = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
+# ============================================
+# فرم‌های Bulk Import (برای وارد کردن از اکسل)
+# ============================================
+
+class ContainerBulkImportForm(forms.Form):
+    """
+    فرم آپلود فایل اکسل برای وارد کردن دسته‌ای کانتینرها
+    """
+    excel_file = forms.FileField(
+        label='Excel File',
+        widget=forms.FileInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Search container number...'
+            'accept': '.xlsx, .xls, .csv'
         })
     )
     
-    status = forms.ChoiceField(
-        choices=STATUS_CHOICES,
-        required=False,
+    def clean_excel_file(self):
+        file = self.cleaned_data['excel_file']
+        max_size = 5 * 1024 * 1024  # 5MB
+        
+        if file.size > max_size:
+            raise ValidationError(f'File too large (max {max_size / 1024 / 1024}MB)')
+        
+        # بررسی پسوند
+        if not file.name.endswith(('.xlsx', '.xls', '.csv')):
+            raise ValidationError('Only Excel or CSV files are allowed')
+        
+        return file
+
+
+class InventoryBulkImportForm(forms.Form):
+    """
+    فرم آپلود فایل اکسل برای وارد کردن دسته‌ای موجودی
+    """
+    excel_file = forms.FileField(
+        label='Excel File',
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.xlsx, .xls, .csv'
+        })
+    )
+    
+    container = forms.ModelChoiceField(
+        queryset=Container.objects.all(),
+        required=True,
         widget=forms.Select(attrs={'class': 'form-select'})
     )
     
-    date_from = forms.DateField(
+    def clean_excel_file(self):
+        file = self.cleaned_data['excel_file']
+        if file.size > 5 * 1024 * 1024:
+            raise ValidationError('File too large (max 5MB)')
+        return file
+
+
+# ============================================
+# فرم‌های گزارش و تحلیل
+# ============================================
+
+class ContainerReportForm(forms.Form):
+    """
+    فرم گزارش‌گیری از کانتینرها
+    """
+    REPORT_TYPE_CHOICES = [
+        ('summary', 'Summary Report'),
+        ('detailed', 'Detailed Report'),
+        ('financial', 'Financial Report'),
+    ]
+    
+    report_type = forms.ChoiceField(
+        choices=REPORT_TYPE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    date_from = forms.CharField(
         required=False,
-        widget=forms.DateInput(attrs={
-            'type': 'date', 
+        widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'From'
+            'placeholder': 'From (e.g., Jan 1)'
         })
     )
     
-    date_to = forms.DateField(
+    date_to = forms.CharField(
         required=False,
-        widget=forms.DateInput(attrs={
-            'type': 'date', 
+        widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'To'
+            'placeholder': 'To (e.g., Dec 31)'
         })
     )
-
-
-class ContainerQuickForm(forms.ModelForm):
-    """فرم سریع برای ویرایش درون‌خطی"""
     
-    class Meta:
-        model = Container
-        fields = [
-            'container_number',
-            'name',
-            'arrival_date',
-            'transport_status',
-            'supplier',
-        ]
-        widgets = {
-            'container_number': forms.TextInput(attrs={
-                'class': 'excel-inline-edit',
-                'data-field': 'container_number'
-            }),
-            'name': forms.TextInput(attrs={
-                'class': 'excel-inline-edit',
-                'data-field': 'name'
-            }),
-            'arrival_date': forms.DateInput(attrs={
-                'class': 'excel-inline-edit',
-                'type': 'date',
-                'data-field': 'arrival_date'
-            }),
-            'transport_status': forms.Select(attrs={
-                'class': 'excel-inline-edit',
-                'data-field': 'transport_status'
-            }),
-            'supplier': forms.TextInput(attrs={
-                'class': 'excel-inline-edit',
-                'data-field': 'supplier'
-            }),
-        }
+    include_zero_sales = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )

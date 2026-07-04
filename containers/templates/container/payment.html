@@ -1,0 +1,267 @@
+<!-- templates/containers/payment_list.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card">
+        <div class="card-header bg-light">
+            <div class="d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">Payment / تراکنش‌ها</h4>
+                <div>
+                    <button class="btn btn-sm btn-success" onclick="addPaymentRow()">
+                        + Add Row
+                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="saveAllPayments()">
+                        💾 Save All
+                    </button>
+                    <button class="btn btn-sm btn-secondary" onclick="exportToExcel()">
+                        📎 Export to Excel
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-body p-0">
+            <!-- فیلتر سریع -->
+            <div class="row p-2 bg-white border-bottom">
+                <div class="col-md-3">
+                    <input type="text" class="form-control form-control-sm" id="searchInput" 
+                           placeholder="🔍 Search by description, paid by, received by...">
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select form-select-sm" id="categoryFilter">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.name }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <input type="text" class="form-control form-control-sm" id="dateFrom" placeholder="Date from (e.g., Jan 1)">
+                </div>
+                <div class="col-md-2">
+                    <input type="text" class="form-control form-control-sm" id="dateTo" placeholder="Date to (e.g., Dec 31)">
+                </div>
+                <div class="col-md-3 text-end">
+                    <span class="badge bg-secondary" id="rowCount">0 rows</span>
+                </div>
+            </div>
+            
+            <!-- جدول اصلی مثل اکسل -->
+            <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+                <table class="table table-bordered table-sm excel-table" id="paymentTable">
+                    <thead class="table-light" style="position: sticky; top: 0;">
+                        <tr>
+                            <th style="width: 80px">Day</th>
+                            <th style="width: 100px">Date</th>
+                            <th style="width: 200px">Description</th>
+                            <th style="width: 120px">Paid By</th>
+                            <th style="width: 120px">Received By</th>
+                            <th style="width: 120px">Category</th>
+                            <th style="width: 100px">Cash-In</th>
+                            <th style="width: 100px">Cash-Out</th>
+                            <th style="width: 80px">Rate</th>
+                            <th style="width: 100px">NZD</th>
+                            <th style="width: 60px">%</th>
+                            <th style="width: 60px">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentTableBody">
+                        {% for payment in payments %}
+                        <tr data-id="{{ payment.id }}">
+                            <td class="day-cell">{{ payment.day|default:'' }}</td>
+                            <td><input type="text" class="form-control form-control-sm" value="{{ payment.date }}" data-field="date"></td>
+                            <td><input type="text" class="form-control form-control-sm" value="{{ payment.description }}" data-field="description"></td>
+                            <td>
+                                <select class="form-select form-select-sm" data-field="paid_by">
+                                    <option value="">---</option>
+                                    {% for person in people %}
+                                    <option value="{{ person.id }}" {% if payment.paid_by.id == person.id %}selected{% endif %}>
+                                        {{ person.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" data-field="received_by">
+                                    <option value="">---</option>
+                                    {% for person in people %}
+                                    <option value="{{ person.id }}" {% if payment.received_by.id == person.id %}selected{% endif %}>
+                                        {{ person.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select class="form-select form-select-sm" data-field="category">
+                                    <option value="">---</option>
+                                    {% for cat in categories %}
+                                    <option value="{{ cat.id }}" {% if payment.category.id == cat.id %}selected{% endif %}>
+                                        {{ cat.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td><input type="number" class="form-control form-control-sm text-end cash-in" value="{{ payment.cash_in|default:'' }}" data-field="cash_in" step="1"></td>
+                            <td><input type="number" class="form-control form-control-sm text-end cash-out" value="{{ payment.cash_out|default:'' }}" data-field="cash_out" step="1"></td>
+                            <td><input type="number" class="form-control form-control-sm text-end" value="{{ payment.rate|default:'' }}" data-field="rate" step="0.001"></td>
+                            <td><input type="number" class="form-control form-control-sm text-end" value="{{ payment.nzd|default:'' }}" data-field="nzd" step="0.001"></td>
+                            <td class="text-center">
+                                <input type="checkbox" class="form-check-input" data-field="is_percentage" {% if payment.is_percentage %}checked{% endif %}>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteRow(this)">✕</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-secondary">
+                        <tr>
+                            <td colspan="6" class="text-end fw-bold">Total:</td>
+                            <td class="text-end fw-bold" id="totalCashIn">0</td>
+                            <td class="text-end fw-bold" id="totalCashOut">0</td>
+                            <td colspan="4"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // محاسبه خودکار جمع Cash-In و Cash-Out
+    function updateTotals() {
+        let totalIn = 0, totalOut = 0;
+        document.querySelectorAll('#paymentTableBody tr').forEach(row => {
+            let cashIn = parseFloat(row.querySelector('.cash-in')?.value) || 0;
+            let cashOut = parseFloat(row.querySelector('.cash-out')?.value) || 0;
+            totalIn += cashIn;
+            totalOut += cashOut;
+        });
+        document.getElementById('totalCashIn').innerText = totalIn.toLocaleString();
+        document.getElementById('totalCashOut').innerText = totalOut.toLocaleString();
+        document.getElementById('rowCount').innerText = document.querySelectorAll('#paymentTableBody tr').length + ' rows';
+    }
+    
+    // اضافه کردن ردیف جدید
+    function addPaymentRow() {
+        const tbody = document.getElementById('paymentTableBody');
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+            <td class="day-cell"></td>
+            <td><input type="text" class="form-control form-control-sm" data-field="date" placeholder="3-Jan-26"></td>
+            <td><input type="text" class="form-control form-control-sm" data-field="description" placeholder="Description"></td>
+            <td>
+                <select class="form-select form-select-sm" data-field="paid_by">
+                    <option value="">---</option>
+                    {% for person in people %}
+                    <option value="{{ person.id }}">{{ person.name }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select class="form-select form-select-sm" data-field="received_by">
+                    <option value="">---</option>
+                    {% for person in people %}
+                    <option value="{{ person.id }}">{{ person.name }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select class="form-select form-select-sm" data-field="category">
+                    <option value="">---</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td><input type="number" class="form-control form-control-sm text-end cash-in" data-field="cash_in" step="1" oninput="updateTotals()"></td>
+            <td><input type="number" class="form-control form-control-sm text-end cash-out" data-field="cash_out" step="1" oninput="updateTotals()"></td>
+            <td><input type="number" class="form-control form-control-sm text-end" data-field="rate" step="0.001"></td>
+            <td><input type="number" class="form-control form-control-sm text-end" data-field="nzd" step="0.001"></td>
+            <td class="text-center"><input type="checkbox" class="form-check-input" data-field="is_percentage"></td>
+            <td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="deleteRow(this)">✕</button></td>
+        `;
+        tbody.appendChild(newRow);
+        updateTotals();
+    }
+    
+    // حذف ردیف
+    function deleteRow(btn) {
+        btn.closest('tr').remove();
+        updateTotals();
+    }
+    
+    // ذخیره همه ردیف‌ها با AJAX
+    function saveAllPayments() {
+        const payments = [];
+        document.querySelectorAll('#paymentTableBody tr').forEach(row => {
+            const id = row.getAttribute('data-id');
+            const payment = {
+                id: id || null,
+                date: row.querySelector('[data-field="date"]')?.value || '',
+                description: row.querySelector('[data-field="description"]')?.value || '',
+                paid_by: row.querySelector('[data-field="paid_by"]')?.value || null,
+                received_by: row.querySelector('[data-field="received_by"]')?.value || null,
+                category: row.querySelector('[data-field="category"]')?.value || null,
+                cash_in: row.querySelector('[data-field="cash_in"]')?.value || 0,
+                cash_out: row.querySelector('[data-field="cash_out"]')?.value || 0,
+                rate: row.querySelector('[data-field="rate"]')?.value || 0,
+                nzd: row.querySelector('[data-field="nzd"]')?.value || 0,
+                is_percentage: row.querySelector('[data-field="is_percentage"]')?.checked || false,
+            };
+            payments.push(payment);
+        });
+        
+        fetch('/containers/api/payments/bulk_save/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({payments: payments})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Saved successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        });
+    }
+    
+    // فیلتر جستجو
+    document.getElementById('searchInput').addEventListener('input', function() {
+        const search = this.value.toLowerCase();
+        document.querySelectorAll('#paymentTableBody tr').forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(search) ? '' : 'none';
+        });
+    });
+    
+    // خودکار پر شدن Day از روی Date
+    document.querySelectorAll('[data-field="date"]').forEach(input => {
+        input.addEventListener('change', function() {
+            const dateStr = this.value;
+            if (dateStr) {
+                // تبدیل "3-Jan-26" به روز هفته
+                fetch(`/containers/api/get_day/?date=${encodeURIComponent(dateStr)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.day) {
+                            this.closest('tr').querySelector('.day-cell').innerText = data.day;
+                        }
+                    });
+            }
+        });
+    });
+    
+    updateTotals();
+    
+    // خروجی به Excel
+    function exportToExcel() {
+        window.location.href = '/containers/api/payments/export/?format=csv';
+    }
+</script>
+{% endblock %}

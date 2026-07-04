@@ -5,566 +5,433 @@
 {% block title %}Almuqbil | Container Management{% endblock %}
 
 {% block content %}
-<div class="container-list-minimal">
-    <div class="excel-box">
-        <div class="excel-menu">
-        
+
+ <div class="excel-menu">
+            <a href="{% url 'containers:list' %}" class="menu-item">
+                <i class="fas fa-ship"></i> Containers
+            </a>
             <a href="{% url 'containers:inventory_list' %}" class="menu-item">
-                <i class="fas fa-chart-bar"></i>Inventory
+                <i class="fas fa-chart-bar"></i> Inventory
             </a>
-            <a href="{% url 'containers:daily_report' %}" class="menu-item">
-                <i class="fas fa-check-double"></i> Report
+            <a href="#" class="menu-item">
+                <i class="fas fa-credit-card"></i> Payment
             </a>
-        </div>
-        <!-- Page Header -->
-        <header class="page-header">
-            <div class="header-main">
-                <div class="header-title-section">
-                    <h1 class="page-title">
-                        <span class="title-main">📦 Container Management</span>
-                        <span class="title-counter">{{ total_containers }} containers</span>
+            <a href="{% url 'containers:expense_list' %}" class="menu-item">
+                <i class="fas fa-credit-card"></i> Expenses
+            </a>
+</div>
+<div class="premium-container">
+    <div class="glass-card">
+        <!-- Premium Header -->
+        <div class="premium-header">
+            <div class="header-content">
+                <div class="title-section">
+                    <h1>
+                        <i class="fas fa-ship"></i>
+                        Container Management
+                        <span class="badge-count">{{ containers|length }} Total</span>
                     </h1>
-                    <p class="page-subtitle">Excel-like view • Double-click cells to edit • Click + to add new</p>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <div class="stat-value">AED{{ total_value|default:0|floatformat:0|intcomma }}</div>
+                        <div class="stat-label">Total Value</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">AED{{ total_sales|default:0|floatformat:0|intcomma }}</div>
+                        <div class="stat-label">Total Sales</div>
+                    </div>
                 </div>
             </div>
-        </header>
-        <div class="excel-toolbar">
-            <button class="toolbar-btn primary" id="newContainerBtn">
+        </div>
+
+        <!-- Toolbar -->
+        <div class="premium-toolbar">
+            <button class="btn-premium btn-primary" id="newContainerBtn">
                 <i class="fas fa-plus"></i> New Container
             </button>
-            <button class="toolbar-btn" onclick="location.reload()">
+            <button class="btn-premium btn-outline" onclick="location.reload()">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
-            <span style="flex:1"></span>
-            <span class="text-muted">📅 {% now "F j, Y" %} | {% now "l" %}</span>
-        </div>
-
-        <div class="controls-bar">
-            <form method="GET" action="" class="search-form" id="searchForm">
-                <div class="search-wrapper">
-                    <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" />
-                        <path d="m21 21-4.35-4.35" stroke="currentColor" stroke-width="2" />
-                    </svg>
-                    <input type="text" name="search" class="search-input"
-                        placeholder="Search containers by number, supplier or code..." value="{{ search|default:'' }}">
-                    {% if search %}
-                    <button type="button" class="clear-search" onclick="clearSearch()">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" />
-                        </svg>
-                    </button>
-                    {% endif %}
-                </div>
-                <div class="filter-actions">
-                    <button type="submit" class="search-btn">Search</button>
-                    {% if search or status_filter or date_from or date_to %}
-                    <a href="{% url 'containers:list' %}" class="reset-btn">Clear All</a>
-                    {% endif %}
-                </div>
-            </form>
-        </div>
-
-        <div class="filter-row">
-            <div class="filter-group">
-                <label>Status:</label>
-                <select name="status" class="filter-select" id="statusFilter">
-                    <option value="">All Status</option>
-                    <option value="in_transit" {% if status_filter == 'in_transit' %}selected{% endif %}>🚢 In Transit</option>
-                    <option value="arrived" {% if status_filter == 'arrived' %}selected{% endif %}>✅ Arrived</option>
-                    <option value="awaiting" {% if status_filter == 'awaiting' %}selected{% endif %}>⏳ Awaiting</option>
-                    <option value="cleared" {% if status_filter == 'cleared' %}selected{% endif %}>📦 Cleared</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>From:</label>
-                <input type="date" name="date_from" class="filter-date" id="dateFrom" value="{{ date_from }}">
-            </div>
-            <div class="filter-group">
-                <label>To:</label>
-                <input type="date" name="date_to" class="filter-date" id="dateTo" value="{{ date_to }}">
-            </div>
-            <button class="apply-filter-btn" id="applyFilter">Apply Filters</button>
-        </div>
-
-        <!-- Summary Cards -->
-        <div class="summary-cards">
-            <div class="summary-card">
-                <div class="summary-icon"><i class="fas fa-ship"></i></div>
-                <div class="summary-content">
-                    <h3>{{ total_containers }}</h3>
-                    <p>Total Containers</p>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-icon"><i class="fas fa-boxes"></i></div>
-                <div class="summary-content">
-                    <h3>{{ total_items|default:0|intcomma }}</h3>
-                    <p>Total Items</p>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-icon"><i class="fas fa-dollar-sign"></i></div>
-                <div class="summary-content">
-                    <h3>AED {{ total_value|default:0|floatformat:0|intcomma }}</h3>
-                    <p>Inventory Value</p>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-icon"><i class="fas fa-chart-line"></i></div>
-                <div class="summary-content">
-                    <h3>{{ in_transit_count|default:0 }}</h3>
-                    <p>In Transit</p>
-                </div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-icon"><i class="fas fa-check-circle"></i></div>
-                <div class="summary-content">
-                    <h3>{{ arrived_count|default:0 }}</h3>
-                    <p>Arrived</p>
-                </div>
+            <button class="btn-premium btn-outline" onclick="exportToCSV()">
+                <i class="fas fa-download"></i> Export
+            </button>
+            <div class="search-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" class="search-input" id="searchInput" 
+                       placeholder="Search by container, supplier or code..." value="{{ search|default:'' }}">
             </div>
         </div>
 
-        <div class="new-row-form" id="newContainerRow" style="display: none;">
-            <div class="field-group">
-                <label>Container #</label>
-                <input type="text" id="new_container_number" placeholder="e.g., MRSU-5724751" required>
+        <!-- Add Form Row (Inline) -->
+        <div class="add-form-row" id="addFormRow">
+            <div class="form-field">
+                <label><i class="fas fa-truck"></i> Supplier</label>
+                <input type="text" id="new_supplier" placeholder="e.g., Active, Xpress">
             </div>
-            <div class="field-group">
-                <label>Supplier</label>
-                <input type="text" id="new_supplier" placeholder="e.g., Xpress">
+            <div class="form-field">
+                <label><i class="fas fa-hashtag"></i> Container No. *</label>
+                <input type="text" id="new_container_no" name="container_no" placeholder="e.g., MRSU-5724751">
             </div>
-            <div class="field-group">
-                <label>Code</label>
+            <div class="form-field">
+                <label><i class="fas fa-barcode"></i> Code</label>
                 <input type="text" id="new_code" placeholder="e.g., G50">
             </div>
-            <div class="field-group">
-                <label>Arrival</label>
-                <input type="date" id="new_arrival_date" value="{% now 'Y-m-d' %}">
+            <div class="form-field">
+                <label><i class="far fa-calendar-alt"></i> Arrival Date</label>
+                <input type="text" id="new_arrival_date" placeholder="e.g., Jan 31">
             </div>
-            <div class="field-group">
-                <label>Status</label>
-                <select id="new_status">
-                    <option value="in_transit">🚢 In Transit</option>
-                    <option value="arrived">✅ Arrived</option>
-                    <option value="awaiting" selected>⏳ Awaiting</option>
-                    <option value="cleared">📦 Cleared</option>
-                </select>
-            </div>
-            <div class="field-group">
-                <label>Sales</label>
-                <input type="number" id="new_total_sales" value="0" step="0.01" min="0">
-            </div>
-            <div class="field-group">
-                <label>Expenses</label>
-                <input type="number" id="new_total_expenses" value="0" step="0.01" min="0">
-            </div>
-            <button class="toolbar-btn success" id="saveNewContainer">
+            <button class="btn-premium btn-success" id="saveNewContainer">
                 <i class="fas fa-save"></i> Save
             </button>
-            <button class="toolbar-btn" id="cancelNewContainer">
+            <button class="btn-premium btn-outline" id="cancelNewContainer">
                 <i class="fas fa-times"></i> Cancel
             </button>
         </div>
 
-        <div class="table-wrapper">
-            <div class="table-scroll">
-                <table class="data-table" id="containersTable">
-                    <thead>
-                        <tr>
-                            <th>Container No.</th>
-                            <th>Supplier</th>
-                            <th>Code</th>
-                            <th>Arrival Date</th>
-                            <th>Total Sales</th>
-                            <th>Total Expenses</th>
-                            <th>Net Value</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody">
-                        {% for container in containers %}
-                        <tr class="data-row" data-id="{{ container.id }}">
-                            <td class="editable-cell" data-field="container_number">
-                                <span class="cell-value">{{ container.container_number }}</span>
-                                <input type="text" value="{{ container.container_number }}" class="edit-input">
-                            </td>
-                            <td class="editable-cell" data-field="supplier">
-                                <span class="cell-value">{{ container.supplier|default:'—' }}</span>
-                                <input type="text" value="{{ container.supplier|default:'' }}" class="edit-input">
-                            </td>
-                            <td class="editable-cell" data-field="code">
-                                <span class="cell-value">{{ container.code|default:'—' }}</span>
-                                <input type="text" value="{{ container.code|default:'' }}" class="edit-input">
-                            </td>
-                            <td class="editable-cell" data-field="arrival_date" data-type="date">
-                                <span class="cell-value">
-                                    {% if container.arrival_date %}
-                                        {{ container.arrival_date|date:"M d, Y" }}
-                                    {% else %}—{% endif %}
-                                </span>
-                                <input type="date" value="{{ container.arrival_date|date:'Y-m-d' }}" class="edit-input">
-                            </td>
-                            <td class="editable-cell" data-field="total_sales" data-type="number">
-                                <span class="cell-value">{{ container.total_sales|default:0|floatformat:0|intcomma }}</span>
-                                <input type="number" value="{{ container.total_sales|default:0 }}" step="0.01" min="0" class="edit-input">
-                            </td>
-                            <td class="editable-cell" data-field="total_expenses" data-type="number">
-                                <span class="cell-value">{{ container.total_expenses|default:0|floatformat:0|intcomma }}</span>
-                                <input type="number" value="{{ container.total_expenses|default:0 }}" step="0.01" min="0" class="edit-input">
-                            </td>
-                            <td class="value-metric {% if container.profit < 0 %}negative{% endif %}">
-                                AED {{ container.profit|default:0|floatformat:0|intcomma }}
-                            </td>
-                            <td class="editable-cell" data-field="transport_status" data-type="select">
-                                <span class="cell-value">
-                                    {% if container.transport_status == 'in_transit' %}🚢 In Transit
-                                    {% elif container.transport_status == 'arrived' %}✅ Arrived
-                                    {% elif container.transport_status == 'awaiting' %}⏳ Awaiting
-                                    {% elif container.transport_status == 'cleared' %}📦 Cleared
-                                    {% else %}⏳ Awaiting{% endif %}
-                                </span>
-                                <select class="edit-input">
-                                    <option value="in_transit" {% if container.transport_status == 'in_transit' %}selected{% endif %}>🚢 In Transit</option>
-                                    <option value="arrived" {% if container.transport_status == 'arrived' %}selected{% endif %}>✅ Arrived</option>
-                                    <option value="awaiting" {% if container.transport_status == 'awaiting' %}selected{% endif %}>⏳ Awaiting</option>
-                                    <option value="cleared" {% if container.transport_status == 'cleared' %}selected{% endif %}>📦 Cleared</option>
-                                </select>
-                            </td>
-                            <td class="action-cell">
-                                <button class="action-btn edit-btn" onclick="editRow(this)" title="Edit">✏️</button>
-                                <button class="action-btn save-btn" onclick="saveRow(this)" title="Save" style="display:none;">💾</button>
-                                <button class="action-btn cancel-btn" onclick="cancelEdit(this)" title="Cancel" style="display:none;">❌</button>
-                                <a href="{% url 'containers:detail' container.id %}" class="action-btn" title="View Details">👁️</a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr class="empty-row">
-                            <td colspan="9">
-                                <div class="empty-state">
-                                    <div class="empty-icon">📦</div>
-                                    <h3 class="empty-title">No Containers Found</h3>
-                                    <p class="empty-message">Click the "New Container" button to add your first container.</p>
-                                    <button class="empty-action" id="emptyStateAddBtn">
-                                        <i class="fas fa-plus"></i> Add Container
-                                    </button>
+        <!-- Main Table -->
+        <div class="table-container">
+            <table class="premium-table">
+                <thead>
+                    <tr>
+                        <th>Supplier</th>
+                        <th>Container No.</th>
+                        <th>Code</th>
+                        <th>Arrival Date</th>
+                        <th>Total Sales</th>
+                        <th>Total Expenses</th>
+                        <th>Net Value</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    {% for container in containers %}
+                    <tr class="data-row" data-id="{{ container.id }}" data-container-no="{{ container.container_no }}">
+                        <td class="editable-cell" data-field="supplier">
+                            <div class="display-value">
+                                {{ container.supplier|default:'—' }}
+                                <i class="fas fa-pen edit-icon"></i>
+                            </div>
+                            <input type="text" value="{{ container.supplier|default:'' }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="container_no">
+                            <div class="display-value">
+                                <strong>{{ container.container_no }}</strong>
+                                <i class="fas fa-pen edit-icon"></i>
+                            </div>
+                            <input type="text" value="{{ container.container_no }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="code">
+                            <div class="display-value">
+                                {{ container.code|default:'—' }}
+                                <i class="fas fa-pen edit-icon"></i>
+                            </div>
+                            <input type="text" value="{{ container.code|default:'' }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="arrival_date">
+                            <div class="display-value">
+                                {{ container.arrival_date|default:'—' }}
+                                <i class="fas fa-pen edit-icon"></i>
+                            </div>
+                            <input type="text" value="{{ container.arrival_date|default:'' }}" class="edit-input">
+                        </td>
+                        <td class="value-neutral">AED{{ container.total_sales|default:0|floatformat:0|intcomma }}</td>
+                        <td class="value-neutral">AED{{ container.total_expenses|default:0|floatformat:0|intcomma }}</td>
+                        <td class="{% if container.net_value >= 0 %}value-positive{% else %}value-negative{% endif %}">
+                            AED{{ container.net_value|default:0|floatformat:0|intcomma }}
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="icon-btn edit" onclick="editRow(this)" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="icon-btn save" onclick="saveRow(this)" style="display:none;" title="Save">
+                                    <i class="fas fa-check-circle"></i>
+                                </button>
+                                <button class="icon-btn cancel" onclick="cancelEdit(this)" style="display:none;" title="Cancel">
+                                    <i class="fas fa-times-circle"></i>
+                                </button>
+                                <button class="icon-btn delete" onclick="deleteContainer('{{ container.id }}', '{{ container.container_no }}')" title="Delete">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <a href="{% url 'containers:detail' container.id %}" class="icon-btn view" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="fas fa-ship"></i>
                                 </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                                <h3 class="empty-title">No Containers Yet</h3>
+                                <p class="empty-text">Get started by creating your first container</p>
+                                <button class="btn-premium btn-primary" id="emptyStateAddBtn">
+                                    <i class="fas fa-plus"></i> Create Container
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
-        <button class="add-row-btn" id="addRowBtn">
-            <i class="fas fa-plus"></i> Add New Container
+        <!-- Add Row Button -->
+        <button class="add-row-premium" id="addRowBtn">
+            <i class="fas fa-plus-circle"></i> Add New Container
         </button>
 
-        <div class="status-bar">
-            <span><i class="fas fa-table"></i> {{ total_containers }} containers | {{ total_items|default:0|intcomma }} items</span>
-            <span><i class="fas fa-calculator"></i> Total Value: AED {{ total_value|default:0|floatformat:0|intcomma }}</span>
-            <span><i class="fas fa-edit"></i> Double-click cells to edit</span>
-        </div>
-        {% if is_paginated %}
-        <div class="pagination">
-            <div class="pagination-info">
-                <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-                <span>{{ paginator.count }} total containers</span>
+        <!-- Status Bar -->
+        <div class="status-bar-premium">
+            <div class="status-left">
+                <span><i class="fas fa-chart-line"></i> {{ containers|length }} containers</span>
+                <span><i class="fas fa-boxes"></i> {{ total_items|default:0 }} items</span>
+                <span><i class="fas fa-dollar-sign"></i> AED{{ total_value|default:0|floatformat:0|intcomma }} total value</span>
             </div>
-            <div class="pagination-controls">
-                {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="page-nav">
-                    <i class="fas fa-chevron-left"></i> Previous
-                </a>
-                {% endif %}
-
-                <div class="page-numbers">
-                    {% for num in page_obj.paginator.page_range %}
-                        {% if num == page_obj.number %}
-                            <span class="page-number active">{{ num }}</span>
-                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                            <a href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="page-number">{{ num }}</a>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-
-                {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}" class="page-nav">
-                    Next <i class="fas fa-chevron-right"></i>
-                </a>
-                {% endif %}
+            <div class="status-right">
+                <span class="weather"><i class="fas fa-sun"></i> 96°F Sunny</span>
+                <span><i class="far fa-clock"></i> <span id="liveClock"></span></span>
+                <span><i class="far fa-calendar-alt"></i> {% now "m/d/Y" %}</span>
             </div>
         </div>
-        {% endif %}
     </div>
 </div>
 
 <script>
-    $(document).ready(function () {
-        let editingRow = null;
-        let originalValues = {};
+    let editingRow = null;
+    let originalValues = {};
 
-        $('#newContainerBtn, #addRowBtn, #emptyStateAddBtn').click(function () {
-            $('#newContainerRow').slideToggle(300);
-            if ($('#newContainerRow').is(':visible')) {
-                $('#new_container_number').focus();
-            }
-        });
-
-        $('#cancelNewContainer').click(function () {
-            $('#newContainerRow').slideUp(300);
-            clearNewForm();
-        });
-
-        $('#saveNewContainer').click(function () {
-            const containerNumber = $('#new_container_number').val().trim();
-            if (!containerNumber) {
-                showToast('Container number is required', 'error');
-                $('#new_container_number').focus();
-                return;
-            }
-
-            const $btn = $(this);
-            const originalText = $btn.html();
-            $btn.html('<i class="fas fa-spinner fa-spin"></i> Saving...').prop('disabled', true);
-
-            const data = {
-                container_number: containerNumber,
-                supplier: $('#new_supplier').val(),
-                code: $('#new_code').val(),
-                transport_status: $('#new_status').val(),
-                arrival_date: $('#new_arrival_date').val(),
-                total_sales: $('#new_total_sales').val(),
-                total_expenses: $('#new_total_expenses').val(),
-                csrfmiddlewaretoken: '{{ csrf_token }}'
-            };
-
-            $.ajax({
-                url: '{% url "containers:container_create_ajax" %}',
-                method: 'POST',
-                data: data,
-                success: function (response) {
-                    if (response.success) {
-                        showToast('✅ Container created successfully', 'success');
-                        setTimeout(() => location.reload(), 1000);
-                    } else {
-                        showToast('❌ Error: ' + response.error, 'error');
-                        $btn.html(originalText).prop('disabled', false);
-                    }
-                },
-                error: function (xhr) {
-                    let errorMsg = 'Error creating container';
-                    try {
-                        const response = JSON.parse(xhr.responseText);
-                        errorMsg = response.error || errorMsg;
-                    } catch (e) { }
-                    showToast('❌ ' + errorMsg, 'error');
-                    $btn.html(originalText).prop('disabled', false);
+    // Get CSRF Token
+    function getCSRFToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, 10) === ('csrftoken' + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(10));
+                    break;
                 }
-            });
-        });
-
-        $('.editable-cell').on('dblclick', function (e) {
-            e.stopPropagation();
-            const row = $(this).closest('tr');
-            const rowId = row.data('id');
-
-            if (editingRow && editingRow !== rowId) {
-                saveRow(editingRow);
             }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCSRFToken();
 
-            if (!row.hasClass('editing')) {
-                startEditing(row);
-            }
+    // Live Clock
+    function updateClock() {
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        const clockElement = document.getElementById('liveClock');
+        if (clockElement) clockElement.textContent = time;
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
 
-            const cell = $(this);
-            if (!cell.hasClass('editing')) {
-                cell.addClass('editing');
-                cell.find('input, select').focus();
-            }
-        });
+    // Toggle Add Form
+    function showAddForm() {
+        document.getElementById('addFormRow').style.display = 'flex';
+        document.getElementById('new_container_no').focus();
+    }
 
-        function startEditing(row) {
-            const rowId = row.data('id');
-            editingRow = rowId;
+    function hideAddForm() {
+        document.getElementById('addFormRow').style.display = 'none';
+        clearAddForm();
+    }
 
-            originalValues[rowId] = {};
-            row.find('.editable-cell').each(function () {
-                const field = $(this).data('field');
-                const value = $(this).find('.cell-value').text().trim();
-                originalValues[rowId][field] = value;
-            });
+    function clearAddForm() {
+        document.getElementById('new_supplier').value = '';
+        document.getElementById('new_container_no').value = '';
+        document.getElementById('new_code').value = '';
+        document.getElementById('new_arrival_date').value = '';
+    }
 
-            row.addClass('editing');
-            row.find('.edit-btn').hide();
-            row.find('.save-btn, .cancel-btn').show();
+    document.getElementById('newContainerBtn')?.addEventListener('click', showAddForm);
+    document.getElementById('addRowBtn')?.addEventListener('click', showAddForm);
+    document.getElementById('emptyStateAddBtn')?.addEventListener('click', showAddForm);
+    document.getElementById('cancelNewContainer')?.addEventListener('click', hideAddForm);
+
+    // Save New Container
+    document.getElementById('saveNewContainer')?.addEventListener('click', function() {
+        const containerNo = document.getElementById('new_container_no').value.trim();
+        
+        if (!containerNo) {
+            showToast('Container number is required', 'error');
+            return;
         }
 
-        window.saveRow = function (button) {
-            const row = $(button).closest('tr');
-            const rowId = row.data('id');
-            const changes = {};
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span> Saving...';
+        btn.disabled = true;
 
-            row.find('.editable-cell.editing').each(function () {
-                const field = $(this).data('field');
-                const newValue = $(this).find('input, select').val();
-                changes[field] = newValue;
-                $(this).removeClass('editing');
-            });
+        const formData = new URLSearchParams();
+        formData.append('container_no', containerNo); 
+        formData.append('supplier', document.getElementById('new_supplier').value);
+        formData.append('code', document.getElementById('new_code').value);
+        formData.append('arrival_date', document.getElementById('new_arrival_date').value);
 
-            if (Object.keys(changes).length > 0) {
-                $.ajax({
-                    url: '/containers/api/container/' + rowId + '/update/',
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}',
-                        'Content-Type': 'application/json'
-                    },
-                    data: JSON.stringify(changes),
-                    success: function (response) {
-                        if (response.success) {
-                            Object.keys(changes).forEach(field => {
-                                const cell = row.find(`.editable-cell[data-field="${field}"]`);
-                                let displayValue = changes[field];
-
-                                if (field === 'transport_status') {
-                                    const icons = {
-                                        'in_transit': '🚢',
-                                        'arrived': '✅',
-                                        'awaiting': '⏳',
-                                        'cleared': '📦'
-                                    };
-                                    const icon = icons[changes[field]] || '';
-                                    const statusText = changes[field].replace('_', ' ').toUpperCase();
-                                    displayValue = icon + ' ' + statusText;
-                                } else if (field === 'arrival_date' && changes[field]) {
-                                    const date = new Date(changes[field]);
-                                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                                    displayValue = months[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear();
-                                } else if (field === 'total_sales' || field === 'total_expenses') {
-                                    displayValue = Number(changes[field]).toLocaleString();
-                                }
-
-                                cell.find('.cell-value').text(displayValue);
-                            });
-
-                            const totalSales = parseFloat(row.find('.editable-cell[data-field="total_sales"] .cell-value').text().replace(/[^0-9.-]/g, '')) || 0;
-                            const totalExpenses = parseFloat(row.find('.editable-cell[data-field="total_expenses"] .cell-value').text().replace(/[^0-9.-]/g, '')) || 0;
-                            const netValue = totalSales - totalExpenses;
-                            row.find('.value-metric').text('AED ' + netValue.toLocaleString());
-
-                            showToast('✅ Changes saved', 'success');
-                        }
-                    },
-                    error: function (xhr) {
-                        let errorMsg = 'Error saving changes';
-                        try {
-                            const response = JSON.parse(xhr.responseText);
-                            errorMsg = response.error || errorMsg;
-                        } catch (e) { }
-                        showToast('❌ ' + errorMsg, 'error');
-                        cancelEdit(button);
-                    }
-                });
+        fetch('{% url "containers:container_create_ajax" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken },
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('✅ Container created successfully!', 'success');
+                setTimeout(() => location.reload(), 800);
             } else {
-                showToast('ℹ️ No changes to save', 'info');
+                showToast('❌ ' + data.error, 'error');
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
             }
-
-            endEditing(row);
-        };
-
-    
-        window.cancelEdit = function (button) {
-            const row = $(button).closest('tr');
-            const rowId = row.data('id');
-
-            row.find('.editable-cell.editing').each(function () {
-                const field = $(this).data('field');
-                $(this).find('.cell-value').text(originalValues[rowId][field]);
-                $(this).removeClass('editing');
-            });
-
-            endEditing(row);
-            showToast('✖️ Editing cancelled', 'info');
-        };
-
-        function endEditing(row) {
-            row.removeClass('editing');
-            row.find('.edit-btn').show();
-            row.find('.save-btn, .cancel-btn').hide();
-            editingRow = null;
-        }
-
-        $('#applyFilter').click(function () {
-            const status = $('#statusFilter').val();
-            const dateFrom = $('#dateFrom').val();
-            const dateTo = $('#dateTo').val();
-
-            let url = '{% url "containers:list" %}?';
-            const params = [];
-
-            const search = '{{ search|default:"" }}';
-            if (search) params.push('search=' + encodeURIComponent(search));
-            if (status) params.push('status=' + status);
-            if (dateFrom) params.push('date_from=' + dateFrom);
-            if (dateTo) params.push('date_to=' + dateTo);
-
-            window.location.href = url + params.join('&');
-        });
-
-        // ========== پاک کردن جستجو ==========
-        window.clearSearch = function () {
-            const url = new URL(window.location.href);
-            url.searchParams.delete('search');
-            window.location.href = url.toString();
-        };
-
-        // ========== نمایش Toast ==========
-        function showToast(message, type) {
-            const colors = {
-                success: '#06a77d',
-                error: '#f94144',
-                warning: '#f9c74f',
-                info: '#4361ee'
-            };
-
-            const toast = $('<div>', {
-                class: 'toast-message',
-                css: {
-                    position: 'fixed',
-                    top: '24px',
-                    right: '24px',
-                    padding: '14px 28px',
-                    background: colors[type] || colors.info,
-                    color: 'white',
-                    borderRadius: '50px',
-                    zIndex: 9999,
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-                    fontSize: '14px',
-                    fontWeight: '500'
-                },
-                text: message
-            });
-            $('body').append(toast);
-            setTimeout(() => toast.fadeOut(300, function () { $(this).remove(); }), 3000);
-        }
-
-        function clearNewForm() {
-            $('#new_container_number, #new_supplier, #new_code').val('');
-            $('#new_total_sales, #new_total_expenses').val('0');
-            $('#new_arrival_date').val('{% now "Y-m-d" %}');
-            $('#new_status').val('awaiting');
-        }
-
-        $('#new_container_number, #new_supplier, #new_code, #new_arrival_date, #new_status, #new_total_sales, #new_total_expenses').keypress(function (e) {
-            if (e.which == 13) {
-                e.preventDefault();
-                $('#saveNewContainer').click();
-            }
+        })
+        .catch(() => {
+            showToast('❌ Network error', 'error');
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
         });
     });
+
+    // Edit Row
+    window.editRow = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+
+        if (editingRow && editingRow !== rowId) {
+            const prevRow = document.querySelector(`tr[data-id="${editingRow}"]`);
+            if (prevRow) saveRow(prevRow.querySelector('.save'));
+        }
+
+        originalValues[rowId] = {};
+        row.querySelectorAll('.editable-cell').forEach(cell => {
+            const field = cell.dataset.field;
+            originalValues[rowId][field] = cell.querySelector('.display-value').innerText.trim().replace('—', '');
+        });
+
+        row.querySelectorAll('.editable-cell').forEach(cell => cell.classList.add('editing'));
+        row.querySelector('.edit').style.display = 'none';
+        row.querySelector('.save').style.display = 'inline-block';
+        row.querySelector('.cancel').style.display = 'inline-block';
+        editingRow = rowId;
+    };
+
+    // Save Row
+    window.saveRow = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+        const changes = {};
+
+        row.querySelectorAll('.editable-cell').forEach(cell => {
+            const field = cell.dataset.field;
+            const newValue = cell.querySelector('.edit-input').value;
+            changes[field] = newValue;
+            cell.classList.remove('editing');
+        });
+
+        fetch(`/containers/api/container/${rowId}/update/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(changes)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                Object.keys(changes).forEach(field => {
+                    const cell = row.querySelector(`.editable-cell[data-field="${field}"]`);
+                    const displayValue = changes[field] || '—';
+                    cell.querySelector('.display-value').innerHTML = `${displayValue} <i class="fas fa-pen edit-icon"></i>`;
+                });
+                showToast('✅ Changes saved!', 'success');
+                setTimeout(() => location.reload(), 500);
+            } else {
+                showToast('❌ ' + data.error, 'error');
+            }
+        })
+        .catch(() => showToast('❌ Error saving changes', 'error'));
+
+        row.querySelector('.edit').style.display = 'inline-block';
+        row.querySelector('.save').style.display = 'none';
+        row.querySelector('.cancel').style.display = 'none';
+        editingRow = null;
+    };
+
+    // Cancel Edit
+    window.cancelEdit = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+
+        row.querySelectorAll('.editable-cell').forEach(cell => {
+            const field = cell.dataset.field;
+            const originalValue = originalValues[rowId][field] || '—';
+            cell.querySelector('.display-value').innerHTML = `${originalValue} <i class="fas fa-pen edit-icon"></i>`;
+            cell.classList.remove('editing');
+        });
+
+        row.querySelector('.edit').style.display = 'inline-block';
+        row.querySelector('.save').style.display = 'none';
+        row.querySelector('.cancel').style.display = 'none';
+        editingRow = null;
+        showToast('✖️ Editing cancelled', 'info');
+    };
+
+    // Delete Container
+    window.deleteContainer = function(containerId, containerNo) {
+        if (confirm(`⚠️ Delete container "${containerNo}"?\n\nThis action cannot be undone.`)) {
+            fetch(`/containers/api/container/${containerId}/delete/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('✅ Container deleted', 'success');
+                    location.reload();
+                } else {
+                    showToast('❌ ' + data.error, 'error');
+                }
+            });
+        }
+    };
+
+    // Search
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        let debounce;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(debounce);
+            debounce = setTimeout(() => {
+                const params = new URLSearchParams();
+                if (this.value) params.append('search', this.value);
+                window.location.href = '{% url "containers:list" %}?' + params.toString();
+            }, 500);
+        });
+    }
+
+    // Export CSV
+    window.exportToCSV = () => {
+        window.location.href = '{% url "containers:export_containers_csv" %}';
+    };
+
+    // Toast
+    function showToast(message, type) {
+        const colors = { success: '#06a77d', error: '#e63946', info: '#4361ee' };
+        const toast = document.createElement('div');
+        toast.className = `toast-premium ${type}`;
+        toast.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
 </script>
 {% endblock %}

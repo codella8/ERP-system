@@ -3,27 +3,40 @@
 {% load humanize %}
 
 {% block title %}Almuqbil | Inventory Management{% endblock %}
+
 {% block content %}
 <div class="inventory-list-minimal">
-    <div class="excel-menu">
+    <div class="excel-box">
+        <!-- Excel Menu -->
+        <div class="excel-menu">
             <a href="{% url 'containers:list' %}" class="menu-item">
-                <i class="fas fa-list"></i> All Transactions
+                <i class="fas fa-ship"></i> Containers
             </a>
-            <a href="{% url 'containers:daily_report' %}" class="menu-item">
-                <i class="fas fa-check-double"></i> Report
+            <a href="{% url 'containers:inventory_list' %}" class="menu-item">
+                <i class="fas fa-chart-bar"></i> Inventory
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-credit-card"></i> Payment
+            </a>
+            <a href="{% url 'containers:expense_list' %}" class="menu-item">
+                <i class="fas fa-credit-card"></i> Expenses
             </a>
         </div>
-    <div class="excel-box">
+
+        <!-- Page Header -->
         <header class="page-header">
             <div class="header-main">
-                <h1 class="page-title">
-                    <span>📋 Inventory Management</span>
-                    <span class="title-counter">{{ total_items }} items</span>
-                </h1>
-                <p class="page-subtitle">Excel-like view • Double-click cells to edit • Click + to add new</p>
+                <div class="header-title-section">
+                    <h1 class="page-title">
+                        <span class="title-main"><i class="fas fa-boxes"></i> Inventory Management</span>
+                        <span class="title-counter">{{ stats.total_items|default:0 }} items</span>
+                    </h1>
+                    <p class="page-subtitle">Excel-like view • Double-click cells to edit • Click + to add new</p>
+                </div>
             </div>
         </header>
 
+        <!-- Toolbar -->
         <div class="excel-toolbar">
             <button class="toolbar-btn primary" id="newItemBtn">
                 <i class="fas fa-plus"></i> New Item
@@ -31,17 +44,21 @@
             <button class="toolbar-btn" onclick="location.reload()">
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
+            <button class="toolbar-btn" onclick="exportToCSV()">
+                <i class="fas fa-file-export"></i> Export CSV
+            </button>
             
             <div class="search-wrapper">
                 <i class="fas fa-search search-icon"></i>
                 <input type="text" class="search-input" id="searchInput" 
-                       placeholder="Search by product, code or container..." value="{{ search }}">
+                       placeholder="Search by product, code or container..." value="{{ search|default:'' }}">
             </div>
             
             <span style="flex:1"></span>
             <span class="text-muted">📅 {% now "F j, Y" %}</span>
         </div>
 
+        <!-- Filters -->
         <div class="filter-row">
             <div class="filter-group">
                 <label>Container:</label>
@@ -49,59 +66,53 @@
                     <option value="">All Containers</option>
                     {% for container in containers %}
                     <option value="{{ container.id }}" {% if container_filter == container.id|stringformat:"s" %}selected{% endif %}>
-                        {{ container.container_number }}
+                        {{ container.container_no }} ({{ container.code|default:container.container_no|truncatechars:20 }})
                     </option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="filter-group">
-                <label>Status:</label>
-                <select class="filter-select" id="statusFilter">
-                    <option value="">All Status</option>
-                    <option value="available" {% if status_filter == 'available' %}selected{% endif %}>Available</option>
-                    <option value="partial" {% if status_filter == 'partial' %}selected{% endif %}>Partial</option>
-                    <option value="sold_out" {% if status_filter == 'sold_out' %}selected{% endif %}>Sold Out</option>
-                </select>
-            </div>
             <button class="toolbar-btn" id="applyFilter">Apply Filters</button>
-            {% if search or container_filter or status_filter %}
+            {% if search or container_filter %}
             <a href="{% url 'containers:inventory_list' %}" class="toolbar-btn">Clear All</a>
             {% endif %}
         </div>
+
+        <!-- Summary Cards -->
         <div class="summary-cards">
             <div class="summary-card">
                 <div class="summary-icon"><i class="fas fa-boxes"></i></div>
                 <div class="summary-content">
-                    <h3>{{ total_items }}</h3>
+                    <h3>{{ stats.total_items|default:0|intcomma }}</h3>
                     <p>Total Items</p>
                 </div>
             </div>
             <div class="summary-card">
                 <div class="summary-icon"><i class="fas fa-cubes"></i></div>
                 <div class="summary-content">
-                    <h3>{{ total_qty|intcomma }}</h3>
-                    <p>Total Quantity</p>
+                    <h3>{{ stats.total_in_stock|default:0|intcomma }}</h3>
+                    <p>In Stock Qty</p>
                 </div>
             </div>
             <div class="summary-card">
                 <div class="summary-icon"><i class="fas fa-shopping-cart"></i></div>
                 <div class="summary-content">
-                    <h3>{{ total_sold_qty|intcomma }}</h3>
-                    <p>Sold Quantity</p>
+                    <h3>{{ stats.total_sold|default:0|intcomma }}</h3>
+                    <p>Sold Qty</p>
                 </div>
             </div>
             <div class="summary-card">
                 <div class="summary-icon"><i class="fas fa-dollar-sign"></i></div>
                 <div class="summary-content">
-                    <h3>AED {{ total_value|floatformat:0|intcomma }}</h3>
+                    <h3>AED {{ stats.total_value|default:0|floatformat:0|intcomma }}</h3>
                     <p>Total Value</p>
                 </div>
             </div>
         </div>
 
+        <!-- New Item Form -->
         <div class="new-row-form" id="newItemRow">
             <div class="field-group">
-                <label>Product</label>
+                <label>Product Name *</label>
                 <input type="text" id="new_product_name" placeholder="Product name" required>
             </div>
             <div class="field-group">
@@ -109,11 +120,11 @@
                 <input type="text" id="new_code" placeholder="Code">
             </div>
             <div class="field-group">
-                <label>Qty</label>
+                <label>Quantity</label>
                 <input type="number" id="new_qty" value="1" min="0" step="1">
             </div>
             <div class="field-group">
-                <label>Price</label>
+                <label>Unit Price (AED)</label>
                 <input type="number" id="new_price" value="0" min="0" step="0.01">
             </div>
             <div class="field-group">
@@ -121,7 +132,7 @@
                 <select id="new_container">
                     <option value="">None</option>
                     {% for container in containers %}
-                    <option value="{{ container.id }}">{{ container.code }}</option>
+                    <option value="{{ container.id }}">{{ container.container_no }} - {{ container.code|default:'' }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -139,15 +150,14 @@
                 <table class="data-table" id="inventoryTable">
                     <thead>
                         <tr>
-                            <th>Product</th>
+                            <th>Product Name</th>
                             <th>Code</th>
-                            <th>Make/Model</th>
                             <th>Container</th>
-                            <th>Qty</th>
-                            <th>Qty Sold</th>
-                            <th>In Stock</th>
-                            <th>Unit Price</th>
-                            <th>Total Value</th>
+                            <th>In Stock Qty</th>
+                            <th>Sold Qty</th>
+                            <th>Available</th>
+                            <th>Unit Price (AED)</th>
+                            <th>Total Value (AED)</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -164,48 +174,59 @@
                                 <input type="text" value="{{ item.code|default:'' }}" class="edit-input">
                             </td>
                             <td>
-                                {{ item.make|default:'' }} {{ item.model|default:'' }}
-                            </td>
-                            <td>
                                 {% if item.container %}
-                                <a href="{% url 'containers:detail' item.container.id %}">
-                                    {{ item.container.container_number }}
+                                <a href="{% url 'containers:detail' item.container.id %}" style="color: #217346; text-decoration: none;">
+                                    <i class="fas fa-ship"></i> {{ item.container.container_no }}
                                 </a>
-                                {% else %}—{% endif %}
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
                             </td>
                             <td class="editable-cell" data-field="in_stock_qty" data-type="number">
-                                <span class="cell-value">{{ item.in_stock_qty|intcomma }}</span>
+                                <span class="cell-value">{{ item.in_stock_qty|floatformat:0|intcomma }}</span>
                                 <input type="number" value="{{ item.in_stock_qty }}" min="0" step="1" class="edit-input">
                             </td>
                             <td class="editable-cell" data-field="total_sold_qty" data-type="number">
-                                <span class="cell-value">{{ item.total_sold_qty|intcomma }}</span>
+                                <span class="cell-value">{{ item.total_sold_qty|floatformat:0|intcomma }}</span>
                                 <input type="number" value="{{ item.total_sold_qty }}" min="0" step="1" class="edit-input">
                             </td>
-                            <td class="{% if item.in_stock <= 0 %}text-danger{% endif %}">
-                                {{ item.in_stock|intcomma }}
+                            <td class="{% if item.current_stock <= 0 %}text-danger{% else %}text-success{% endif %}">
+                                {{ item.current_stock|floatformat:0|intcomma }}
                             </td>
                             <td class="editable-cell" data-field="unit_price" data-type="number">
-                                <span class="cell-value">AED {{ item.unit_price|floatformat:0|intcomma }}</span>
+                                <span class="cell-value">{{ item.unit_price|floatformat:0|intcomma }}</span>
                                 <input type="number" value="{{ item.unit_price }}" min="0" step="0.01" class="edit-input">
                             </td>
-                            <td>AED {{ item.total_value|floatformat:0|intcomma }}</td>
                             <td>
-                                <span class="status-badge status-{{ item.status }}">
-                                    {{ item.get_status_display }}
-                                </span>
+                                <strong>{{ item.current_value|floatformat:0|intcomma }}</strong>
                             </td>
+                            <!-- خطوط 160-165 را با این کد جایگزین کن -->
+                        <td>
+                            <span class="status-badge 
+                                {% if item.in_stock <= 0 %}status-sold_out
+                                {% elif item.total_sold_qty > 0 %}status-partial
+                                {% else %}status-available{% endif %}">
+                                {% if item.current_stock <= 0 %}❌ Sold Out
+                                {% elif item.total_sold_qty > 0 %}⚠️ Partial
+                                {% else %}✅ Available{% endif %}
+                            </span>
+                        </td>
                             <td class="action-cell">
                                 <button class="action-btn edit-btn" onclick="editRow(this)" title="Edit">✏️</button>
                                 <button class="action-btn save-btn" onclick="saveRow(this)" title="Save" style="display:none;">💾</button>
                                 <button class="action-btn cancel-btn" onclick="cancelEdit(this)" title="Cancel" style="display:none;">❌</button>
-                                <a href="{% url 'containers:inventory_detail' item.id %}" class="action-btn" title="Details">👁️</a>
+                                <button class="action-btn delete-btn" onclick="deleteItem('{{ item.id }}', '{{ item.product_name }}')" title="Delete">🗑️</button>
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="11" class="text-center" style="padding: 50px;">
-                                <h3>No items found</h3>
-                                <p>Click the "New Item" button to add your first item.</p>
+                            <td colspan="10" class="text-center" style="padding: 60px;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">📦</div>
+                                <h3 style="margin-bottom: 8px;">No Items Found</h3>
+                                <p style="color: #6c757d;">Click the "New Item" button to add your first inventory item.</p>
+                                <button class="toolbar-btn primary" id="emptyStateAddBtn" style="margin-top: 16px;">
+                                    <i class="fas fa-plus"></i> Add Item
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -214,257 +235,269 @@
             </div>
         </div>
 
-        <!-- Add Row Button -->
-        <button class="add-row-btn" id="addRowBtn">
-            <i class="fas fa-plus"></i> Add New Item
-        </button>
-
         <!-- Status Bar -->
         <div class="status-bar">
-            <span><i class="fas fa-table"></i> {{ total_items }} items | {{ total_qty|intcomma }} total qty</span>
-            <span><i class="fas fa-check-circle"></i> Available: {{ available_count }} | Partial: {{ partial_count }} | Sold: {{ sold_out_count }}</span>
+            <span><i class="fas fa-table"></i> {{ stats.total_items|default:0 }} items</span>
+            <span><i class="fas fa-cubes"></i> In Stock: {{ stats.total_in_stock|default:0|intcomma }}</span>
+            <span><i class="fas fa-shopping-cart"></i> Sold: {{ stats.total_sold|default:0|intcomma }}</span>
+            <span><i class="fas fa-dollar-sign"></i> Value: AED {{ stats.total_value|default:0|floatformat:0|intcomma }}</span>
             <span><i class="fas fa-edit"></i> Double-click cells to edit</span>
         </div>
     </div>
 </div>
 
 <script>
-    $(document).ready(function() {
-        let editingRow = null;
-        let originalValues = {};
+    let editingRow = null;
+    let originalValues = {};
 
-        // ========== New Item Form Toggle ==========
-        $('#newItemBtn, #addRowBtn').click(function() {
-            $('#newItemRow').slideToggle(300);
-            if ($('#newItemRow').is(':visible')) {
-                $('#new_product_name').focus();
-            }
-        });
-
-        $('#cancelNewItem').click(function() {
-            $('#newItemRow').slideUp(300);
-            clearNewForm();
-        });
-
-        // ========== Save New Item ==========
-        $('#saveNewItem').click(function() {
-            const productName = $('#new_product_name').val().trim();
-            if (!productName) {
-                showToast('Product name is required', 'error');
-                return;
-            }
-
-            const $btn = $(this);
-            const originalText = $btn.html();
-            $btn.html('<i class="fas fa-spinner fa-spin"></i> Saving...').prop('disabled', true);
-
-            const data = {
-                product_name: productName,
-                code: $('#new_code').val(),
-                make: $('#new_make').val(),
-                model: $('#new_model').val(),
-                in_stock_qty: $('#new_qty').val(),
-                unit_price: $('#new_price').val(),
-                price: $('#new_price').val(),
-                container: $('#new_container').val(),
-                csrfmiddlewaretoken: '{{ csrf_token }}'
-            };
-
-            $.ajax({
-                url: '{% url "containers:inventory_create_ajax" %}',
-                method: 'POST',
-                data: data,
-                success: function(response) {
-                    if (response.success) {
-                        showToast('✅ Item created successfully', 'success');
-                        setTimeout(() => location.reload(), 1000);
-                    } else {
-                        showToast('❌ Error: ' + response.error, 'error');
-                        $btn.html(originalText).prop('disabled', false);
-                    }
-                },
-                error: function() {
-                    showToast('❌ Error creating item', 'error');
-                    $btn.html(originalText).prop('disabled', false);
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
                 }
-            });
-        });
-
-        // ========== Edit with Double Click ==========
-        $('.editable-cell').on('dblclick', function(e) {
-            e.stopPropagation();
-            const row = $(this).closest('tr');
-            const rowId = row.data('id');
-
-            if (editingRow && editingRow !== rowId) {
-                saveRow(editingRow);
             }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
 
-            if (!row.hasClass('editing')) {
-                startEditing(row);
-            }
+    // ========== New Item Form Toggle ==========
+    document.getElementById('newItemBtn')?.addEventListener('click', () => {
+        document.getElementById('newItemRow').style.display = 'flex';
+        document.getElementById('new_product_name').focus();
+    });
+    document.getElementById('addRowBtn')?.addEventListener('click', () => {
+        document.getElementById('newItemRow').style.display = 'flex';
+        document.getElementById('new_product_name').focus();
+    });
+    document.getElementById('emptyStateAddBtn')?.addEventListener('click', () => {
+        document.getElementById('newItemRow').style.display = 'flex';
+        document.getElementById('new_product_name').focus();
+    });
+    document.getElementById('cancelNewItem')?.addEventListener('click', () => {
+        document.getElementById('newItemRow').style.display = 'none';
+        clearNewForm();
+    });
 
-            const cell = $(this);
-            if (!cell.hasClass('editing')) {
-                cell.addClass('editing');
-                cell.find('input, select').focus();
-            }
-        });
+    function clearNewForm() {
+        document.getElementById('new_product_name').value = '';
+        document.getElementById('new_code').value = '';
+        document.getElementById('new_qty').value = '1';
+        document.getElementById('new_price').value = '0';
+        document.getElementById('new_container').value = '';
+    }
 
-        function startEditing(row) {
-            const rowId = row.data('id');
-            editingRow = rowId;
-
-            originalValues[rowId] = {};
-            row.find('.editable-cell').each(function() {
-                const field = $(this).data('field');
-                const value = $(this).find('.cell-value').text().trim();
-                originalValues[rowId][field] = value;
-            });
-
-            row.addClass('editing');
-            row.find('.edit-btn').hide();
-            row.find('.save-btn, .cancel-btn').show();
+    // ========== Save New Item ==========
+    document.getElementById('saveNewItem')?.addEventListener('click', function() {
+        const productName = document.getElementById('new_product_name').value.trim();
+        if (!productName) {
+            showToast('Product name is required', 'error');
+            return;
         }
 
-        // ========== Save Changes ==========
-        window.saveRow = function(button) {
-            const row = $(button).closest('tr');
-            const rowId = row.data('id');
-            const changes = {};
+        const $btn = this;
+        const originalText = $btn.innerHTML;
+        $btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        $btn.disabled = true;
 
-            row.find('.editable-cell.editing').each(function() {
-                const field = $(this).data('field');
-                const newValue = $(this).find('input, select').val();
-                changes[field] = newValue;
-                $(this).removeClass('editing');
-            });
+        fetch('{% url "containers:inventory_create_ajax" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                product_name: productName,
+                code: document.getElementById('new_code').value,
+                in_stock_qty: document.getElementById('new_qty').value,
+                unit_price: document.getElementById('new_price').value,
+                container: document.getElementById('new_container').value,
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('✅ Item created successfully', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast('❌ ' + (data.error || 'Error creating item'), 'error');
+                $btn.innerHTML = originalText;
+                $btn.disabled = false;
+            }
+        })
+        .catch(() => {
+            showToast('❌ Error creating item', 'error');
+            $btn.innerHTML = originalText;
+            $btn.disabled = false;
+        });
+    });
 
-            if (Object.keys(changes).length > 0) {
-                $.ajax({
-                    url: '/containers/api/inventory/' + rowId + '/update/',
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': '{{ csrf_token }}',
-                        'Content-Type': 'application/json'
-                    },
-                    data: JSON.stringify(changes),
-                    success: function(response) {
-                        if (response.success) {
-                            Object.keys(changes).forEach(field => {
-                                const cell = row.find(`.editable-cell[data-field="${field}"]`);
-                                let displayValue = changes[field];
+    // ========== Edit Functions ==========
+    window.editRow = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
 
-                                if (field === 'unit_price') {
-                                    displayValue = 'AED ' + Number(changes[field]).toLocaleString();
-                                } else if (field === 'in_stock_qty' || field === 'total_sold_qty') {
-                                    displayValue = Number(changes[field]).toLocaleString();
-                                }
+        if (editingRow && editingRow !== rowId) {
+            const prevRow = document.querySelector(`tr[data-id="${editingRow}"]`);
+            if (prevRow) saveRow(prevRow.querySelector('.save-btn'));
+        }
 
-                                cell.find('.cell-value').text(displayValue);
-                            });
+        originalValues[rowId] = {};
+        row.querySelectorAll('.editable-cell').forEach(cell => {
+            const field = cell.dataset.field;
+            originalValues[rowId][field] = cell.querySelector('.cell-value').innerText.trim();
+        });
 
-                            // Update in_stock and status
-                            const qty = parseFloat(row.find('.editable-cell[data-field="in_stock_qty"] .cell-value').text().replace(/[^0-9.-]/g, '')) || 0;
-                            const sold = parseFloat(row.find('.editable-cell[data-field="total_sold_qty"] .cell-value').text().replace(/[^0-9.-]/g, '')) || 0;
-                            const inStock = qty - sold;
-                            
-                            row.find('td:eq(6)').text(inStock.toLocaleString());
-                            if (inStock <= 0) {
-                                row.find('td:eq(6)').addClass('text-danger');
-                            }
+        row.classList.add('editing');
+        row.querySelector('.edit-btn').style.display = 'none';
+        row.querySelector('.save-btn').style.display = 'inline-block';
+        row.querySelector('.cancel-btn').style.display = 'inline-block';
+        editingRow = rowId;
+    };
 
-                            showToast('✅ Changes saved', 'success');
-                        }
-                    },
-                    error: function() {
-                        showToast('❌ Error saving changes', 'error');
-                        cancelEdit(button);
+    window.saveRow = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+        const changes = {};
+
+        row.querySelectorAll('.editable-cell').forEach(cell => {
+            const field = cell.dataset.field;
+            const newValue = cell.querySelector('.edit-input').value;
+            changes[field] = newValue;
+            cell.classList.remove('editing');
+        });
+
+        fetch(`/containers/api/inventory/${rowId}/update/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(changes)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                Object.keys(changes).forEach(field => {
+                    const cell = row.querySelector(`.editable-cell[data-field="${field}"]`);
+                    let displayValue = changes[field];
+                    if (field === 'unit_price') {
+                        displayValue = parseInt(changes[field]).toLocaleString();
                     }
+                    cell.querySelector('.cell-value').innerText = displayValue;
                 });
+                showToast('✅ Changes saved', 'success');
+                setTimeout(() => location.reload(), 500);
+            } else {
+                showToast('❌ ' + data.error, 'error');
             }
+        })
+        .catch(() => showToast('❌ Error saving changes', 'error'));
 
-            endEditing(row);
-        };
+        endEditing(row);
+    };
 
-        window.cancelEdit = function(button) {
-            const row = $(button).closest('tr');
-            const rowId = row.data('id');
+    window.cancelEdit = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
 
-            row.find('.editable-cell.editing').each(function() {
-                const field = $(this).data('field');
-                $(this).find('.cell-value').text(originalValues[rowId][field]);
-                $(this).removeClass('editing');
-            });
-
-            endEditing(row);
-            showToast('✖️ Editing cancelled', 'info');
-        };
-
-        function endEditing(row) {
-            row.removeClass('editing');
-            row.find('.edit-btn').show();
-            row.find('.save-btn, .cancel-btn').hide();
-            editingRow = null;
-        }
-
-        // ========== Apply Filters ==========
-        $('#applyFilter').click(function() {
-            const container = $('#containerFilter').val();
-            const status = $('#statusFilter').val();
-            const search = $('#searchInput').val();
-
-            let url = '{% url "containers:inventory_list" %}?';
-            const params = [];
-
-            if (search) params.push('search=' + encodeURIComponent(search));
-            if (container) params.push('container=' + container);
-            if (status) params.push('status=' + status);
-
-            window.location.href = url + params.join('&');
+        row.querySelectorAll('.editable-cell').forEach(cell => {
+            const field = cell.dataset.field;
+            cell.querySelector('.cell-value').innerText = originalValues[rowId][field];
+            cell.classList.remove('editing');
         });
 
-        // ========== Search on Enter ==========
-        $('#searchInput').keypress(function(e) {
-            if (e.which == 13) {
-                $('#applyFilter').click();
+        endEditing(row);
+        showToast('✖️ Editing cancelled', 'info');
+    };
+
+    function endEditing(row) {
+        row.classList.remove('editing');
+        row.querySelector('.edit-btn').style.display = 'inline-block';
+        row.querySelector('.save-btn').style.display = 'none';
+        row.querySelector('.cancel-btn').style.display = 'none';
+        editingRow = null;
+    }
+
+    // ========== Delete Item ==========
+    window.deleteItem = function(itemId, productName) {
+        if (confirm(`Are you sure you want to delete "${productName}"?\nThis action cannot be undone.`)) {
+            fetch(`/containers/api/inventory/${itemId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('✅ Item deleted successfully', 'success');
+                    location.reload();
+                } else {
+                    showToast('❌ ' + data.error, 'error');
+                }
+            })
+            .catch(() => showToast('❌ Error deleting item', 'error'));
+        }
+    };
+
+    // ========== Filters ==========
+    document.getElementById('applyFilter')?.addEventListener('click', () => {
+        const container = document.getElementById('containerFilter').value;
+        const search = document.getElementById('searchInput').value;
+
+        let url = '{% url "containers:inventory_list" %}?';
+        const params = [];
+        if (search) params.push('search=' + encodeURIComponent(search));
+        if (container) params.push('container=' + container);
+        window.location.href = url + params.join('&');
+    });
+
+    document.getElementById('searchInput')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('applyFilter').click();
+        }
+    });
+
+    // ========== Export CSV ==========
+    window.exportToCSV = function() {
+        window.location.href = '{% url "containers:export_inventory_csv" %}';
+    };
+
+    // ========== Toast ==========
+    function showToast(message, type) {
+        const colors = {success: '#28a745', error: '#dc3545', info: '#17a2b8'};
+        const toast = document.createElement('div');
+        toast.className = 'toast-message';
+        toast.style.background = colors[type] || colors.info;
+        toast.style.color = 'white';
+        toast.innerText = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    // ========== Double-click Edit ==========
+    document.querySelectorAll('.editable-cell').forEach(cell => {
+        cell.addEventListener('dblclick', function(e) {
+            e.stopPropagation();
+            const row = this.closest('tr');
+            const rowId = row.dataset.id;
+            if (editingRow && editingRow !== rowId) {
+                const prevRow = document.querySelector(`tr[data-id="${editingRow}"]`);
+                if (prevRow) saveRow(prevRow.querySelector('.save-btn'));
             }
+            if (!row.classList.contains('editing')) {
+                editRow(row.querySelector('.edit-btn'));
+            }
+            this.classList.add('editing');
+            this.querySelector('.edit-input')?.focus();
         });
-
-        // ========== Toast Notification ==========
-        function showToast(message, type) {
-            const colors = {
-                success: '#06a77d',
-                error: '#f94144',
-                info: '#4361ee'
-            };
-
-            const toast = $('<div>', {
-                class: 'toast-message',
-                css: {
-                    position: 'fixed',
-                    top: '24px',
-                    right: '24px',
-                    padding: '14px 28px',
-                    background: colors[type],
-                    color: 'white',
-                    borderRadius: '50px',
-                    zIndex: 9999,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                    fontSize: '14px'
-                },
-                text: message
-            });
-            $('body').append(toast);
-            setTimeout(() => toast.fadeOut(300, function() { $(this).remove(); }), 3000);
-        }
-
-        function clearNewForm() {
-            $('#new_product_name, #new_code, #new_make, #new_model').val('');
-            $('#new_qty').val('1');
-            $('#new_price').val('0');
-            $('#new_container').val('');
-        }
     });
 </script>
 {% endblock %}

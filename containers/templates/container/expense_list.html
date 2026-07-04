@@ -1,0 +1,441 @@
+{% extends 'container/container_base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Almuqbil | Expenses{% endblock %}
+
+{% block content %}
+<div class="expense-wrapper">
+    <div class="excel-box">
+        
+        <!-- منو -->
+        <div class="excel-menu">
+            <a href="{% url 'containers:list' %}" class="menu-item"><i class="fas fa-ship"></i> Containers</a>
+            <a href="{% url 'containers:inventory_list' %}" class="menu-item"><i class="fas fa-chart-bar"></i> Inventory</a>
+            <a href="#" class="menu-item"><i class="fas fa-credit-card"></i> Payment</a>
+            <a href="{% url 'containers:expense_list' %}" class="menu-item active"><i class="fas fa-receipt"></i> Expenses</a>
+        </div>
+        
+        <!-- Header -->
+        <header class="page-header">
+            <div class="header-main">
+                <h1 class="page-title">
+                    <i class="fas fa-receipt"></i> Expenses
+                    <span class="title-counter">{{ expenses.count }} records</span>
+                </h1>
+                <p class="page-subtitle">Excel-like view • Double-click to edit • Click + to add new</p>
+            </div>
+        </header>
+        
+        <!-- Toolbar -->
+        <div class="excel-toolbar">
+            <button class="toolbar-btn primary" id="addExpenseBtn">
+                <i class="fas fa-plus"></i> New Expense
+            </button>
+            <button class="toolbar-btn" id="addCategoryBtn">
+                <i class="fas fa-tag"></i> New Category
+            </button>
+            <button class="toolbar-btn" onclick="location.reload()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+            <div class="search-wrapper">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search expenses..." value="{{ search|default:'' }}">
+            </div>
+            <span style="flex:1"></span>
+            <span class="text-muted">📅 {% now "F j, Y" %}</span>
+        </div>
+
+        <div class="category-form-row" id="categoryFormRow" style="display: none;">
+            <div class="form-field">
+                <label>Category Name *</label>
+                <input type="text" id="new_category_name" placeholder="e.g., Fuel, Salary, Maintenance">
+            </div>
+            <div class="form-field">
+                <label>Description</label>
+                <input type="text" id="new_category_description" placeholder="Optional description">
+            </div>
+            <button class="btn-save" id="saveCategory">💾 Save Category</button>
+            <button class="btn-cancel" id="cancelCategory">✖ Cancel</button>
+        </div>
+        
+        <!-- فرم اضافه کردن Expense (Inline) -->
+        <div class="add-form-row" id="addFormRow" style="display: none;">
+            <div class="form-field">
+                <label>Date</label>
+                <input type="text" id="new_date" placeholder="22-Jan-26" value="{% now 'd-M-y' %}">
+            </div>
+            <div class="form-field">
+                <label>Category</label>
+                <select id="new_category">
+                    <option value="">---</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.id }}">{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Description</label>
+                <input type="text" id="new_description" placeholder="Description">
+            </div>
+            <div class="form-field">
+                <label>Amount</label>
+                <input type="number" id="new_amount" value="0" step="1" min="0">
+            </div>
+            <div class="form-field">
+                <label>Paid By</label>
+                <select id="new_paid_by">
+                    <option value="">---</option>
+                    {% for person in people %}
+                    <option value="{{ person.id }}">{{ person.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Received By</label>
+                <select id="new_received_by">
+                    <option value="">---</option>
+                    {% for person in people %}
+                    <option value="{{ person.id }}">{{ person.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-field">
+                <label>Container</label>
+                <select id="new_container">
+                    <option value="">---</option>
+                    {% for container in containers %}
+                    <option value="{{ container.id }}">{{ container.container_no }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn-save" id="saveExpense">💾 Save</button>
+            <button class="btn-cancel" id="cancelExpense">✖ Cancel</button>
+        </div>
+        
+        <div class="table-wrapper">
+            <table class="data-table" id="expenseTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Paid By</th>
+                        <th>Received By</th>
+                        <th>Container</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    {% for expense in expenses %}
+                    <tr class="data-row" data-id="{{ expense.id }}">
+                        <td class="editable-cell" data-field="date">
+                            <span class="cell-value">{{ expense.date }}</span>
+                            <input type="text" value="{{ expense.date }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="category" data-type="select">
+                            <span class="cell-value">{{ expense.category.name|default:'—' }}</span>
+                            <select class="edit-input">
+                                <option value="">---</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if expense.category.id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="editable-cell" data-field="description">
+                            <span class="cell-value">{{ expense.description|truncatechars:30 }}</span>
+                            <input type="text" value="{{ expense.description }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="amount" data-type="number">
+                            <span class="cell-value">{{ expense.amount|floatformat:0|intcomma }}</span>
+                            <input type="number" value="{{ expense.amount }}" step="1" min="0" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="paid_by" data-type="select">
+                            <span class="cell-value">{{ expense.paid_by.name|default:'—' }}</span>
+                            <select class="edit-input">
+                                <option value="">---</option>
+                                {% for person in people %}
+                                <option value="{{ person.id }}" {% if expense.paid_by.id == person.id %}selected{% endif %}>{{ person.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="editable-cell" data-field="received_by" data-type="select">
+                            <span class="cell-value">{{ expense.received_by.name|default:'—' }}</span>
+                            <select class="edit-input">
+                                <option value="">---</option>
+                                {% for person in people %}
+                                <option value="{{ person.id }}" {% if expense.received_by.id == person.id %}selected{% endif %}>{{ person.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="editable-cell" data-field="container" data-type="select">
+                            <span class="cell-value">{{ expense.container.container_no|default:'—' }}</span>
+                            <select class="edit-input">
+                                <option value="">---</option>
+                                {% for container in containers %}
+                                <option value="{{ container.id }}" {% if expense.container.id == container.id %}selected{% endif %}>{{ container.container_no }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="action-cell">
+                            <button class="action-btn edit-btn" onclick="editRow(this)" title="Edit">✏️</button>
+                            <button class="action-btn save-btn" onclick="saveRow(this)" title="Save" style="display:none;">💾</button>
+                            <button class="action-btn cancel-btn" onclick="cancelEdit(this)" title="Cancel" style="display:none;">❌</button>
+                            <button class="action-btn delete-btn" onclick="deleteExpense('{{ expense.id }}')" title="Delete">🗑️</button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center">No expenses recorded</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="3"><strong>TOTAL</strong></td>
+                        <td><strong>{{ total_expenses|floatformat:0|intcomma }}</strong></td>
+                        <td colspan="4"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span><i class="fas fa-receipt"></i> {{ expenses.count }} expenses</span>
+            <span><i class="fas fa-dollar-sign"></i> Total: {{ total_expenses|floatformat:0|intcomma }}</span>
+            <span><i class="fas fa-edit"></i> Double-click cells to edit</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    let editingRow = null;
+    let originalValues = {};
+
+    // CSRF Token
+    function getCSRFToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, 10) === 'csrftoken=') {
+                    cookieValue = decodeURIComponent(cookie.substring(10));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCSRFToken();
+
+    // ============================================================
+    // مدیریت دسته‌بندی (Category) در همان صفحه
+    // ============================================================
+
+    // Toggle Category Form
+    document.getElementById('addCategoryBtn').addEventListener('click', () => {
+        const form = document.getElementById('categoryFormRow');
+        form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+        if (form.style.display === 'flex') document.getElementById('new_category_name').focus();
+    });
+
+    document.getElementById('cancelCategory').addEventListener('click', () => {
+        document.getElementById('categoryFormRow').style.display = 'none';
+        document.getElementById('new_category_name').value = '';
+        document.getElementById('new_category_description').value = '';
+    });
+
+    // Save New Category (AJAX)
+    document.getElementById('saveCategory').addEventListener('click', function() {
+        const name = document.getElementById('new_category_name').value.trim();
+        if (!name) {
+            alert('Category name is required!');
+            return;
+        }
+
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '⏳ Saving...';
+        btn.disabled = true;
+
+        fetch('{% url "containers:expense_category_create_ajax" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                name: name,
+                description: document.getElementById('new_category_description').value
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert('✅ Category created successfully!');
+                // اضافه کردن به select ها
+                const newOption = `<option value="${data.id}">${data.name}</option>`;
+                
+                // اضافه به همه select های category در صفحه
+                document.querySelectorAll('select[id="new_category"], select[data-field="category"]').forEach(select => {
+                    select.insertAdjacentHTML('beforeend', newOption);
+                    select.value = data.id;
+                });
+                
+                // مخفی کردن فرم و ریست
+                document.getElementById('categoryFormRow').style.display = 'none';
+                document.getElementById('new_category_name').value = '';
+                document.getElementById('new_category_description').value = '';
+                
+            } else {
+                alert('❌ ' + data.error);
+            }
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        })
+        .catch(() => {
+            alert('❌ Network error');
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
+    });
+
+    // ============================================================
+    // مدیریت Expense
+    // ============================================================
+
+    // Toggle Add Form
+    document.getElementById('addExpenseBtn').addEventListener('click', () => {
+        const form = document.getElementById('addFormRow');
+        form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+        if (form.style.display === 'flex') document.getElementById('new_description').focus();
+    });
+    document.getElementById('cancelExpense').addEventListener('click', () => {
+        document.getElementById('addFormRow').style.display = 'none';
+    });
+
+    // Save New Expense
+    document.getElementById('saveExpense').addEventListener('click', function() {
+        const data = {
+            date: document.getElementById('new_date').value,
+            category: document.getElementById('new_category').value,
+            description: document.getElementById('new_description').value,
+            amount: document.getElementById('new_amount').value,
+            paid_by: document.getElementById('new_paid_by').value,
+            received_by: document.getElementById('new_received_by').value,
+            container: document.getElementById('new_container').value,
+        };
+        
+        fetch('{% url "containers:expense_create_ajax" %}', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken },
+            body: new URLSearchParams(data)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) { alert('✅ Expense created!'); location.reload(); }
+            else alert('❌ ' + data.error);
+        });
+    });
+
+    // Edit Row
+    window.editRow = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+        if (editingRow && editingRow !== rowId) {
+            const prevRow = document.querySelector(`tr[data-id="${editingRow}"]`);
+            if (prevRow) saveRow(prevRow.querySelector('.save-btn'));
+        }
+        originalValues[rowId] = {};
+        row.querySelectorAll('.editable-cell').forEach(cell => {
+            const field = cell.dataset.field;
+            originalValues[rowId][field] = cell.querySelector('.cell-value').innerText.trim();
+        });
+        row.classList.add('editing');
+        row.querySelector('.edit-btn').style.display = 'none';
+        row.querySelector('.save-btn').style.display = 'inline-block';
+        row.querySelector('.cancel-btn').style.display = 'inline-block';
+        editingRow = rowId;
+    };
+
+    // Save Row
+    window.saveRow = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+        const changes = {};
+        row.querySelectorAll('.editable-cell').forEach(cell => {
+            const field = cell.dataset.field;
+            const newValue = cell.querySelector('.edit-input').value;
+            changes[field] = newValue;
+            cell.classList.remove('editing');
+        });
+        
+        fetch(`/containers/api/expense/${rowId}/update/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrftoken, 'Content-Type': 'application/json' },
+            body: JSON.stringify(changes)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) { alert('✅ Saved!'); location.reload(); }
+            else alert('❌ ' + data.error);
+        });
+        endEditing(row);
+    };
+
+    window.cancelEdit = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+        row.querySelectorAll('.editable-cell').forEach(cell => {
+            const field = cell.dataset.field;
+            cell.querySelector('.cell-value').innerText = originalValues[rowId][field];
+            cell.classList.remove('editing');
+        });
+        endEditing(row);
+    };
+
+    function endEditing(row) {
+        row.classList.remove('editing');
+        row.querySelector('.edit-btn').style.display = 'inline-block';
+        row.querySelector('.save-btn').style.display = 'none';
+        row.querySelector('.cancel-btn').style.display = 'none';
+        editingRow = null;
+    }
+
+    // Delete
+    window.deleteExpense = function(id) {
+        if (confirm('Delete this expense?')) {
+            fetch(`/containers/api/expense/${id}/delete/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) { alert('✅ Deleted!'); location.reload(); }
+                else alert('❌ ' + data.error);
+            });
+        }
+    };
+
+    // Double-click edit
+    document.querySelectorAll('.editable-cell').forEach(cell => {
+        cell.addEventListener('dblclick', function(e) {
+            e.stopPropagation();
+            const row = this.closest('tr');
+            if (!row.classList.contains('editing')) editRow(row.querySelector('.edit-btn'));
+            this.classList.add('editing');
+            this.querySelector('.edit-input')?.focus();
+        });
+    });
+
+    // Search
+    document.getElementById('searchInput')?.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            const params = new URLSearchParams();
+            if (this.value) params.append('search', this.value);
+            window.location.href = '{% url "containers:expense_list" %}?' + params.toString();
+        }
+    });
+</script>
+{% endblock %}

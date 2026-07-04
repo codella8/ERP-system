@@ -2,317 +2,261 @@
 import logging
 from decimal import Decimal
 from datetime import timedelta
-from django.db import transaction as db_transaction
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
-from .models import DailySaleTransaction, Payment, DailySummary, OutstandingCustomer
+from .models import DailySaleTransaction
 
 logger = logging.getLogger(__name__)
-def _aggregate_transactions(qs, tx_type=None):
-    """Aggregate total, count, items for a queryset of transactions"""
-    if tx_type:
-        qs = qs.filter(transaction_type=tx_type)
-    
+
+
+def _aggregate_transactions(qs):
     result = qs.aggregate(
-        total=Sum('total_amount'),
-        count=Count('id'),
+        total_sales=Sum('sales'),
+        total_discount=Sum('discount'),
+        total_paid=Sum('paid'),
+        total_qty=Sum('qty'),
+        transaction_count=Count('id'),
     )
 
-    if tx_type == 'sale':
-        items_sold_result = qs.aggregate(
-            items_sold=Sum('quantity')
-        )
-        result['items_sold'] = items_sold_result['items_sold']
-    else:
-        result['items_sold'] = None
+    result['total_sales'] = result['total_sales'] or Decimal('0')
+    result['total_discount'] = result['total_discount'] or Decimal('0')
+    result['total_paid'] = result['total_paid'] or Decimal('0')
+    result['total_qty'] = result['total_qty'] or 0
+    result['transaction_count'] = result['transaction_count'] or 0
+    result['net_total'] = result['total_sales'] - result['total_discount']
+    if result['net_total'] < 0:
+        result['net_total'] = Decimal('0')
     
     return result
 
+
 def get_sales_summary(start_date, end_date):
     try:
-        sales_agg = _aggregate_transactions(DailySaleTransaction.objects.filter(date__range=[start_date, end_date]), 'sale')
-        purchase_agg = _aggregate_transactions(DailySaleTransaction.objects.filter(date__range=[start_date, end_date]), 'purchase')
-
-        total_sales = sales_agg['total'] or Decimal('0.00')
-        total_purchases = purchase_agg['total'] or Decimal('0.00')
-        net_revenue = total_sales - total_purchases
-
+        qs = DailySaleTransaction.objects.filter(date__range=[start_date, end_date])
+        result = _aggregate_transactions(qs)
+        unpaid_balance = qs.filter(balance__gt=0).aggregate(
+            total=Sum('balance')
+        )['total'] or Decimal('0')
+        paid_count = qs.filter(payment_status='paid').count()
+        partial_count = qs.filter(payment_status='partial').count()
+        unpaid_count = qs.filter(payment_status='unpaid').count()
+        
         return {
-            'total_sales': total_sales,
-            'total_purchases': total_purchases,
-            'net_revenue': net_revenue,
-            'transactions_count': sales_agg['count'] or 0,
-            'items_sold': sales_agg['items_sold'] or 0,
+            'total_sales': result['total_sales'],
+            'total_discount': result['total_discount'],
+            'net_total': result['net_total'],
+            'total_paid': result['total_paid'],
+            'total_qty': result['total_qty'],
+            'transaction_count': result['transaction_count'],
+            'unpaid_balance': unpaid_balance,
+            'paid_count': paid_count,
+            'partial_count': partial_count,
+            'unpaid_count': unpaid_count,
         }
+        
     except Exception as e:
-        logger.exception("Error in get_sales_summary")
-        return {'total_sales': 0, 'total_purchases': 0, 'net_revenue': 0, 'transactions_count': 0, 'items_sold': 0}
+        logger.exception(f"Error in get_sales_summary: {e}")
+        return {
+            'total_sales': Decimal('0'),
+            'total_discount': Decimal('0'),
+            'net_total': Decimal('0'),
+            'total_paid': Decimal('0'),
+            'total_qty': 0,
+            'transaction_count': 0,
+            'unpaid_balance': Decimal('0'),
+            'paid_count': 0,
+            'partial_count': 0,
+            'unpaid_count': 0,
+        }
 
 
 def sales_timeseries(start_date, end_date, group_by='day'):
     try:
-        if DailySummary.objects.filter(date__range=[start_date, end_date]).exists():
-            return _timeseries_from_summary(start_date, end_date)
-        return _timeseries_from_transactions(start_date, end_date)
-    except Exception:
-        logger.exception("Error in sales_timeseries")
+        timeseries = []
+        current_date = start_date
+        
+        while current_date <= end_date:
+            if group_by == 'day':
+                date_end = current_date
+                next_date = current_date + timedelta(days=1)
+            elif group_by == 'week':
+                date_end = current_date + timedelta(days=6)
+                next_date = current_date + timedelta(days=7)
+            else:  # month
+                if current_date.month == 12:
+                    next_date = current_date.replace(year=current_date.year + 1, month=1, day=1)
+                else:
+                    next_date = current_date.replace(month=current_date.month + 1, day=1)
+                date_end = next_date - timedelta(days=1)
+            
+            qs = DailySaleTransaction.objects.filter(date__range=[current_date, date_end])
+            agg = _aggregate_transactions(qs)
+            
+            timeseries.append({
+                'date_start': current_date,
+                'date_end': date_end,
+                'label': str(current_date),
+                'total_sales': agg['total_sales'],
+                'net_total': agg['net_total'],
+                'transaction_count': agg['transaction_count'],
+                'total_qty': agg['total_qty'],
+            })
+            
+            current_date = next_date
+        
+        return timeseries
+        
+    except Exception as e:
+        logger.exception(f"Error in sales_timeseries: {e}")
         return []
 
-def _timeseries_from_summary(start_date, end_date):
-    summaries = DailySummary.objects.filter(date__range=[start_date, end_date]).order_by('date')
-    return [
-        {
-            'date': s.date,
-            'total_sales': s.total_sales,
-            'total_purchases': s.total_purchases,
-            'transactions_count': s.transactions_count,
-            'items_sold': s.items_sold,
-        } for s in summaries
-    ]
 
-def _timeseries_from_transactions(start_date, end_date):
-    timeseries = []
-    delta = end_date - start_date
-    for i in range(delta.days + 1):
-        current_date = start_date + timedelta(days=i)
-        sales_agg = _aggregate_transactions(DailySaleTransaction.objects.filter(date=current_date), 'sale')
-        purchase_agg = _aggregate_transactions(DailySaleTransaction.objects.filter(date=current_date), 'purchase')
-        timeseries.append({
-            'date': current_date,
-            'total_sales': sales_agg['total'] or Decimal('0.00'),
-            'total_purchases': purchase_agg['total'] or Decimal('0.00'),
-            'transactions_count': sales_agg['count'] or 0,
-            'items_sold': sales_agg['items_sold'] or 0,
-        })
-    return timeseries
-
-
-def recompute_daily_summary_for_date(target_date):
-    if not target_date:
-        logger.warning("recompute_daily_summary_for_date called with no date")
-        return None
-
-    logger.info(f"Recomputing DailySummary for {target_date}")
+def get_daily_summary_from_transactions(date):
     try:
-        with db_transaction.atomic():
-            transactions = DailySaleTransaction.objects.filter(date=target_date)
-            if not transactions.exists():
-                DailySummary.objects.filter(date=target_date).delete()
-                return None
-
-            sales_agg = _aggregate_transactions(transactions, 'sale')
-            purchase_agg = _aggregate_transactions(transactions, 'purchase')
-
-            total_sales = sales_agg['total'] or Decimal('0.00')
-            total_purchases = purchase_agg['total'] or Decimal('0.00')
-            transactions_count = transactions.count()
-            items_sold = sales_agg['items_sold'] or 0
-            customers_count = transactions.filter(transaction_type='sale').values('customer').distinct().count()
-            total_profit = total_sales - total_purchases
-            payments_total = Payment.objects.filter(date=target_date).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-            net_balance = total_sales - payments_total
-            
-            # محاسبه آمار اضافی
-            total_tax = transactions.aggregate(total=Sum('tax_amount'))['total'] or Decimal('0.00')
-            total_discount = transactions.aggregate(total=Sum('discount'))['total'] or Decimal('0.00')
-            total_paid = transactions.aggregate(total=Sum('advance'))['total'] or Decimal('0.00')
-            
-            paid_transactions = transactions.filter(payment_status='paid').count()
-            partial_transactions = transactions.filter(payment_status='partial').count()
-            unpaid_transactions = transactions.filter(payment_status='unpaid').count()
-            
-            total_outstanding = transactions.filter(balance__gt=0).aggregate(
-                total=Sum('balance')
-            )['total'] or Decimal('0.00')
-            
-            avg_transaction_value = Decimal('0.00')
-            if transactions_count > 0:
-                avg_transaction_value = total_sales / transactions_count
-
-            summary, created = DailySummary.objects.update_or_create(
-                date=target_date,
-                defaults={
-                    'total_sales': total_sales,
-                    'total_purchases': total_purchases,
-                    'total_profit': total_profit,
-                    'net_balance': net_balance,
-                    'transactions_count': transactions_count,
-                    'items_sold': items_sold,
-                    'customers_count': customers_count,
-                    'total_tax': total_tax,
-                    'total_discount': total_discount,
-                    'total_paid': total_paid,
-                    'paid_transactions': paid_transactions,
-                    'partial_transactions': partial_transactions,
-                    'unpaid_transactions': unpaid_transactions,
-                    'total_outstanding': total_outstanding,
-                    'avg_transaction_value': avg_transaction_value,
-                    'updated_at': timezone.now(),
-                    'is_final': False,
-                }
-            )
-            logger.info(f"{'Created' if created else 'Updated'} summary for {target_date}")
-            logger.info(f"   Sales: {total_sales:,.2f} AED")
-            logger.info(f"   Outstanding: {total_outstanding:,.2f} AED")
-            logger.info(f"   Items: {items_sold}")
-            return summary
-    except Exception as e:
-        logger.exception(f"Error in recompute_daily_summary_for_date: {e}")
-        return None
-
-def recompute_outstanding_for_customer(customer_id):
-    if not customer_id:
-        logger.warning("recompute_outstanding_for_customer called with no customer_id")
-        return
-
-    try:
-        with db_transaction.atomic():
-            transactions = DailySaleTransaction.objects.filter(customer_id=customer_id)
-            
-            if not transactions.exists():
-                OutstandingCustomer.objects.filter(customer_id=customer_id).delete()
-                logger.info(f"No transactions found for customer {customer_id}, removed from outstanding")
-                return
-
-            total_debt = Decimal('0.00')
-            tx_count = 0
-            last_tx_date = None
-            
-            for tx in transactions:
-                if tx.balance > Decimal('0.00'):
-                    total_debt += tx.balance
-                    tx_count += 1
-                    if last_tx_date is None or tx.date > last_tx_date:
-                        last_tx_date = tx.date
-
-            if total_debt > Decimal('0.00'):
-                obj, created = OutstandingCustomer.objects.update_or_create(
-                    customer_id=customer_id,
-                    defaults={
-                        'total_debt': total_debt,
-                        'transactions_count': tx_count,
-                        'last_transaction': last_tx_date,
-                        'updated_at': timezone.now(),
-                    }
-                )
-                logger.info(f"Updated outstanding for customer {customer_id}: {total_debt:,.2f} AED ({'created' if created else 'updated'})")
-            else:
-                deleted_count, _ = OutstandingCustomer.objects.filter(customer_id=customer_id).delete()
-                if deleted_count > 0:
-                    logger.info(f"Removed customer {customer_id} from outstanding (no debt)")
-                else:
-                    logger.info(f"Customer {customer_id} already not in outstanding")
-
-    except Exception as e:
-        logger.exception(f"Error in recompute_outstanding_for_customer {customer_id}: {str(e)}")
-
-def generate_daily_summaries_for_range(start_date, end_date):
-    success = error = 0
-    for i in range((end_date - start_date).days + 1):
-        if recompute_daily_summary_for_date(start_date + timedelta(days=i)):
-            success += 1
-        else:
-            error += 1
-    logger.info(f"Generated {success} summaries, {error} errors")
-    return success, error
-
-def recompute_all_summaries(start_date=None, end_date=None):
-    qs = DailySaleTransaction.objects.all()
-    if start_date: qs = qs.filter(date__gte=start_date)
-    if end_date: qs = qs.filter(date__lte=end_date)
-    dates = qs.values_list('date', flat=True).distinct()
-    success = error = 0
-    for d in dates:
-        if recompute_daily_summary_for_date(d):
-            success += 1
-        else:
-            error += 1
-    logger.info(f"Recompute complete: {success} success, {error} errors")
-    return success, error
-
-def is_customer_fully_paid(customer_id):
-    """
-    بررسی می‌کند که آیا مشتری تمام تراکنش‌هایش را پرداخت کرده است یا نه
-    این تابع مستقل از بازه زمانی کار می‌کند
-    """
-    try:
-        transactions = DailySaleTransaction.objects.filter(customer_id=customer_id)
-        
-        if not transactions.exists():
-            return False
-        
-        # اگر هیچ تراکنشی با balance > 0 وجود نداشته باشد
-        if transactions.filter(balance__gt=0).exists():
-            return False
-        
-        # اگر همه تراکنش‌ها payment_status = 'paid' داشته باشند
-        if transactions.exclude(payment_status='paid').exists():
-            return False
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"Error checking if customer {customer_id} is fully paid: {str(e)}")
-        return False
-
-
-def get_customer_cleared_data(customer_id):
-    """
-    دریافت اطلاعات مشتری برای نمایش در صفحه تسویه شده‌ها
-    """
-    try:
-        from accounts.models import UserProfile
-        
-        customer = UserProfile.objects.get(id=customer_id)
-        transactions = DailySaleTransaction.objects.filter(
-            customer=customer,
-            payment_status='paid'
-        ).order_by('date')
-        
-        if not transactions.exists():
-            return None
-        
-        total_cleared = transactions.aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
-        last_payment = transactions.filter(payments__isnull=False).order_by('-payments__date').first()
-        last_payment_date = None
-        if last_payment:
-            last_payment_obj = last_payment.payments.order_by('-date').first()
-            if last_payment_obj:
-                last_payment_date = last_payment_obj.date
-        
-        first_transaction_date = transactions.first().date if transactions.first() else None
-        
-        transactions_details = []
-        for tx in transactions:
-            transactions_details.append({
-                'id': str(tx.id),
-                'invoice_number': tx.invoice_number or f"TRX-{str(tx.id)[:8]}",
-                'date': tx.date,
-                'total_amount': tx.total_amount,
-                'total_paid': tx.advance,
-                'discount': tx.discount,
-                'status': 'Paid',
-            })
-        
-        clear_days = 0
-        if last_payment_date:
-            clear_days = (timezone.now().date() - last_payment_date).days
-        
-        customer_name = customer.user.get_full_name() or customer.user.username if customer.user else str(customer)
+        qs = DailySaleTransaction.objects.filter(date=date)
+        agg = _aggregate_transactions(qs)
+        code_summary = qs.values('code').annotate(
+            total_sales=Sum('sales'),
+            total_qty=Sum('qty'),
+            transaction_count=Count('id')
+        ).order_by('code')
         
         return {
-            'customer_id': str(customer.id),
-            'customer_name': customer_name,
-            'customer_phone': getattr(customer, 'phone', ''),
-            'customer_email': customer.user.email if customer.user else '',
-            'total_cleared_amount': total_cleared,
-            'total_transactions': transactions.count(),
-            'last_payment_date': last_payment_date,
-            'first_transaction_date': first_transaction_date,
-            'clear_days': clear_days,
-            'transactions': transactions_details,
+            'date': date,
+            'total_sales': agg['total_sales'],
+            'total_discount': agg['total_discount'],
+            'net_total': agg['net_total'],
+            'total_paid': agg['total_paid'],
+            'total_qty': agg['total_qty'],
+            'transaction_count': agg['transaction_count'],
+            'transactions': qs.order_by('-created_at'),
+            'code_summary': list(code_summary),
         }
         
     except Exception as e:
-        logger.error(f"Error getting cleared data for customer {customer_id}: {str(e)}")
+        logger.exception(f"Error in get_daily_summary_from_transactions: {e}")
+        return {
+            'date': date,
+            'total_sales': Decimal('0'),
+            'total_discount': Decimal('0'),
+            'net_total': Decimal('0'),
+            'total_paid': Decimal('0'),
+            'total_qty': 0,
+            'transaction_count': 0,
+            'transactions': [],
+            'code_summary': [],
+        }
+
+
+def get_top_items(limit=10, start_date=None, end_date=None):
+    try:
+        qs = DailySaleTransaction.objects.filter(item__isnull=False)
+        
+        if start_date:
+            qs = qs.filter(date__gte=start_date)
+        if end_date:
+            qs = qs.filter(date__lte=end_date)
+        
+        top_items = qs.values('item__id', 'item__product_name', 'item__code').annotate(
+            total_qty=Sum('qty'),
+            total_sales=Sum('sales'),
+            transaction_count=Count('id')
+        ).order_by('-total_sales')[:limit]
+        
+        return list(top_items)
+        
+    except Exception as e:
+        logger.exception(f"Error in get_top_items: {e}")
+        return []
+
+
+def get_top_customers(limit=10, start_date=None, end_date=None):
+    try:
+        qs = DailySaleTransaction.objects.exclude(customer_name__isnull=True).exclude(customer_name='')
+        
+        if start_date:
+            qs = qs.filter(date__gte=start_date)
+        if end_date:
+            qs = qs.filter(date__lte=end_date)
+        
+        top_customers = qs.values('customer_name').annotate(
+            total_sales=Sum('sales'),
+            net_total=Sum('sales') - Sum('discount'),
+            total_paid=Sum('paid'),
+            transaction_count=Count('id'),
+            total_qty=Sum('qty')
+        ).order_by('-net_total')[:limit]
+
+        for customer in top_customers:
+            if customer['net_total'] > 0:
+                customer['paid_percentage'] = (customer['total_paid'] / customer['net_total'] * 100).quantize(Decimal('0.01'))
+            else:
+                customer['paid_percentage'] = Decimal('0')
+        
+        return list(top_customers)
+        
+    except Exception as e:
+        logger.exception(f"Error in get_top_customers: {e}")
+        return []
+
+
+def update_inventory_stock(transaction, decrease=True):
+    try:
+        if transaction.item:
+            if decrease:
+                transaction.item.in_stock_qty -= transaction.qty
+                transaction.item.total_sold_qty += transaction.qty
+            else:
+                transaction.item.in_stock_qty += transaction.qty
+                transaction.item.total_sold_qty -= transaction.qty
+            
+            transaction.item.save(update_fields=['in_stock_qty', 'total_sold_qty'])
+            logger.info(f"Stock updated for item {transaction.item.id}: new stock={transaction.item.in_stock_qty}")
+            return True
+            
+    except Exception as e:
+        logger.error(f"Error updating inventory stock: {e}")
+    
+    return False
+
+
+def check_stock_availability(item_id, requested_qty):
+    try:
+        from containers.models import Inventory_List
+        item = Inventory_List.objects.get(pk=item_id)
+        return item.in_stock_qty >= requested_qty, item.in_stock_qty
+    except Exception as e:
+        logger.error(f"Error checking stock: {e}")
+        return False, 0
+
+
+def get_payment_status_stats(queryset=None):
+    if queryset is None:
+        queryset = DailySaleTransaction.objects.all()
+    
+    stats = {
+        'paid': queryset.filter(payment_status='paid').count(),
+        'partial': queryset.filter(payment_status='partial').count(),
+        'unpaid': queryset.filter(payment_status='unpaid').count(),
+    }
+    
+    stats['total'] = stats['paid'] + stats['partial'] + stats['unpaid']
+    paid_amount = queryset.filter(payment_status='paid').aggregate(total=Sum('total'))['total'] or Decimal('0')
+    partial_amount = queryset.filter(payment_status='partial').aggregate(total=Sum('balance'))['total'] or Decimal('0')
+    unpaid_amount = queryset.filter(payment_status='unpaid').aggregate(total=Sum('total'))['total'] or Decimal('0')
+    
+    stats['paid_amount'] = paid_amount
+    stats['partial_amount'] = partial_amount
+    stats['unpaid_amount'] = unpaid_amount
+    
+    return stats
+
+
+def parse_date_param(date_str):
+    if not date_str:
+        return None
+    try:
+        from datetime import datetime
+        return datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
         return None

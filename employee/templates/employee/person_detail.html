@@ -1,399 +1,540 @@
-<!-- templates/employee/employee_detail.html -->
+<!-- employee/templates/employee/person_detail.html -->
 {% extends 'employee/employee_base.html' %}
 {% load static %}
 {% load humanize %}
 
-{% block title %}Employee Details - {{ employee_info.full_name }}{% endblock %}
+{% block title %}Almubil | {{ person.name }}{% endblock %}
 
 {% block content %}
-<div class="employees-detail-container">
-    <!-- هدر ناوبری -->
-    <div class="detail-header">
-        <a href="{% url 'employee:employee_list' %}" class="back-btn">
-            <i class="fas fa-arrow-left"></i>
-            Back to Employees
-        </a>
-        <div class="header-actions">
-            <a href="{% url 'admin:employee_employee_change' employee.id %}" class="btn-edit">
-                <i class="fas fa-edit"></i>
-                Edit Employee
-            </a>
-        </div>
-    </div>
-    <div class="profile-header">
-        <div class="profile-avatar">
-            <div class="avatar-large">
-                {{ employee_info.avatar_initials }}
-            </div>
-        </div>
-        <div class="profile-info">
-            <h1>{{ employee_info.full_name }}</h1>
-            <div class="profile-meta">
-                <span class="position">
-                    <i class="fas fa-briefcase"></i>
-                    {{ employee_info.position }}
-                </span>
-                <span class="employment-type">
-                    <i class="fas fa-user-tie"></i>
-                    {{ employee_info.employment_type }}
-                </span>
-                <span class="employee-id">
-                    <i class="fas fa-id-card"></i>
-                    ID: {{ employee.id|slice:":8" }}
-                </span>
-                <span class="email">
-                    <i class="fas fa-envelope"></i>
-                    {{ employee_info.email }}
-                </span>
-            </div>
-            <div class="profile-status">
-                <span
-                    class="status-badge {% if employee_info.status == 'Active' %}status-active{% else %}status-inactive{% endif %}">
-                    <i class="fas fa-circle"></i>
-                    {{ employee_info.status }}
-                </span>
-                {% if employee_info.is_current %}
-                <span class="status-badge status-active">
-                    <i class="fas fa-check-circle"></i>
-                    Currently Employed
-                </span>
-                {% endif %}
-            </div>
-        </div>
-        <div class="profile-stats">
-            <div class="stat-item">
-                <div class="stat-label">Years of Service</div>
-                <div class="stat-value">
-                    {% if employee_info.years_of_service %}
-                    {{ employee_info.years_of_service }} years
-                    {% if employee_info.months_of_service %}
-                    {{ employee_info.months_of_service }} months
-                    {% endif %}
-                    {% else %}
-                    Not specified
-                    {% endif %}
-                </div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">Hire Date</div>
-                <div class="stat-value">
-                    {% if employee_info.hire_date %}
-                    {{ employee_info.hire_date|date:"F d, Y" }}
-                    {% else %}
-                    Not specified
-                    {% endif %}
-                </div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-label">Termination Date</div>
-                <div class="stat-value">
-                    {% if employee_info.termination_date %}
-                    {{ employee_info.termination_date|date:"F d, Y" }}
-                    {% else %}
-                    Currently Active
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="section">
-        <div class="section-header">
-            <h2>
-                <i class="fas fa-bolt"></i>
-                Financial Summary
-            </h2>
-            <span class="payment-status {{ payment_status.class }}">
-                <i class="fas fa-{{ payment_status.icon }}"></i>
-                {{ payment_status.label }}
-            </span>
-        </div>
 
-        <div class="quick-summary-grid">
-            <div class="quick-summary-item">
-                <div class="quick-summary-icon">
-                    <i class="fas fa-money-bill-wave"></i>
-                </div>
-                <div class="quick-summary-label">Monthly Salary</div>
-                <div class="quick-summary-value">AED{{ employee.salary_due|floatformat:0|intcomma }}</div>
-            </div>
-            <div class="quick-summary-item">
-                <div class="quick-summary-icon">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-                <div class="quick-summary-label">Total Paid</div>
-                <div class="quick-summary-value">AED{{ financials.total_paid|floatformat:0|intcomma }}</div>
-            </div>
-            <div class="quick-summary-item">
-                <div class="quick-summary-icon">
-                    <i class="fas fa-receipt"></i>
-                </div>
-                <div class="quick-summary-label">Total Expenses</div>
-                <div class="quick-summary-value">AED{{ financials.total_expenses|floatformat:0|intcomma }}</div>
-            </div>
-            <div class="quick-summary-item">
-                <div class="quick-summary-icon">
-                    <i class="fas fa-balance-scale"></i>
-                </div>
-                <div class="quick-summary-label">Remaining Balance</div>
-                <div class="quick-summary-value">
-                    AED{{ financials.remaining_balance|floatformat:0|intcomma }}
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="pd-wrapper">
+    <a href="{% url 'employee:management' %}" class="pd-back-btn">
+        <i class="fas fa-arrow-left"></i> Back to People
+    </a>
 
-    <!-- مرور مالی کامل -->
-    <div class="section financial-overview">
-        <div class="section-header">
-            <h2>
-                <i class="fas fa-chart-pie"></i>
-                Complete Financial Overview
-            </h2>
-        </div>
-
-        <div class="financial-grid">
-            <!-- جزئیات حقوق -->
-            <div class="financial-card">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-money-bill-wave"></i>
+    <div class="pd-box">
+        <div class="pd-profile">
+            <div class="pd-profile-row">
+                <div class="pd-profile-left">
+                    <div class="pd-avatar">
+                        {{ person.name|slice:":1"|upper }}
                     </div>
-                    <h3>Salary Details</h3>
-                </div>
-                <div class="card-body">
-                    <div class="financial-item">
-                        <span class="label">Monthly Salary</span>
-                        <span class="value">AED{{ employee.salary_due|floatformat:0|intcomma }}</span>
-                    </div>
-                    <div class="financial-item">
-                        <span class="label">Employee Debt</span>
-                        <span class="value">AED{{ employee.debt_to_company|floatformat:0|intcomma }}</span>
-                    </div>
-                    <div class="financial-item">
-                        <span class="label">Total Expense</span>
-                        <span
-                            class="value">AED{{financials.total_expenses|add:employee.debt_to_company|floatformat:0|intcomma}}</span>
-                    </div>
-                    <div class="financial-item">
-                        <span class="label">Net Payable</span>
-                        <span class="value">AED{{ financials.net_salary|floatformat:0|intcomma }}</span>
-                    </div>
-                    <div class="financial-item highlight">
-                        <span class="label">Balance</span>
-                        <span class="value">AED{{ financials.remaining_balance|floatformat:0|intcomma }}</span>
+                    <div class="pd-profile-info">
+                        <h2>{{ person.name }}</h2>
+                        <div class="pd-profile-tags">
+                            <span class="pd-tag {% if person.person_type == 'employee' %}pd-tag-employee{% else %}pd-tag-saraf{% endif %}">
+                                <i class="fas {% if person.person_type == 'employee' %}fa-user-tie{% else %}fa-hand-holding-usd{% endif %}"></i>
+                                {{ person.get_person_type_display }}
+                            </span>
+                            <span class="pd-tag {% if person.status == 'active' %}pd-tag-active{% else %}pd-tag-inactive{% endif %}">
+                                <i class="fas fa-circle"></i>
+                                {{ person.get_status_display }}
+                            </span>
+                        </div>
+                        <div class="pd-profile-contact">
+                            <span class="pd-contact-item"><i class="fas fa-phone"></i> {{ person.phone|default:"—" }}</span>
+                            <span class="pd-contact-item"><i class="fas fa-envelope"></i> {{ person.email|default:"—" }}</span>
+                            <span class="pd-contact-item"><i class="fas fa-map-marker-alt"></i> {{ person.address|default:"—"|truncatechars:30 }}</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="financial-card">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-list"></i>
+                <div class="pd-profile-right">
+                    <div class="pd-balance-amount {% if net_balance >= 0 %}pd-balance-positive{% else %}pd-balance-negative{% endif %}">
+                        AED {{ net_balance|floatformat:0|intcomma }}
                     </div>
-                    <h3>Expense Summary</h3>
+                    <div class="pd-balance-label">Total Balance</div>
                 </div>
-                <div class="card-body">
-                    <div class="financial-item">
-                        <span class="label">Total Expenses</span>
-                        <span class="value">{{ expense_stats.total_expenses }}</span>
-                    </div>
-                    <div class="financial-item">
-                        <span class="label">Total Amount</span>
-                        <span class="value">AED{{ expense_stats.total_amount|floatformat:0|intcomma }}</span>
-                    </div>
-                    <div class="financial-item">
-                        <span class="label">Average Expense</span>
-                        <span class="value">AED{{ expense_stats.avg_expense|floatformat:0|intcomma }}</span>
-                    </div>
-                    <div class="financial-item">
-                        <span class="label">Categories</span>
-                        <span class="value">{{ expense_stats.by_category|length }}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- تاریخچه هزینه‌ها -->
-    <div class="section expense-history">
-        <div class="section-header">
-            <h2>
-                <i class="fas fa-receipt"></i>
-                Recent Expense History
-            </h2>
-            <div class="section-stats">
-                <span class="stat">
-                    <i class="fas fa-list"></i>
-                    {{ expense_stats.total_expenses }} expenses
-                </span>
-                <span class="stat">
-                    <i class="fas fa-money-bill-wave"></i>
-                    AED{{ expense_stats.total_amount|floatformat:0|intcomma }} total
-                </span>
             </div>
         </div>
 
-        {% if expenses %}
-        <div class="table-container">
-            <table class="data-table">
+        <!-- ===== STATS ===== -->
+        <div class="pd-stats">
+            <div class="pd-stat">
+                <div class="pd-stat-icon blue"><i class="fas fa-receipt"></i></div>
+                <div class="pd-stat-content">
+                    <span class="pd-stat-value">{{ transaction_stats.total|default:0 }}</span>
+                    <span class="pd-stat-label">Transactions</span>
+                </div>
+            </div>
+            <div class="pd-stat">
+                <div class="pd-stat-icon green"><i class="fas fa-arrow-down"></i></div>
+                <div class="pd-stat-content">
+                    <span class="pd-stat-value green">AED {{ total_cash_in|floatformat:0|intcomma }}</span>
+                    <span class="pd-stat-label">Cash-In</span>
+                </div>
+            </div>
+            <div class="pd-stat">
+                <div class="pd-stat-icon red"><i class="fas fa-arrow-up"></i></div>
+                <div class="pd-stat-content">
+                    <span class="pd-stat-value red">AED {{ total_cash_out|floatformat:0|intcomma }}</span>
+                    <span class="pd-stat-label">Cash-Out</span>
+                </div>
+            </div>
+            <div class="pd-stat">
+                <div class="pd-stat-icon purple"><i class="fas fa-balance-scale"></i></div>
+                <div class="pd-stat-content">
+                    <span class="pd-stat-value {% if net_balance >= 0 %}green{% else %}red{% endif %}">
+                        AED {{ net_balance|floatformat:0|intcomma }}
+                    </span>
+                    <span class="pd-stat-label">Net Balance</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== FORM ===== -->
+        <div class="pd-form">
+            <div class="pd-form-header">
+                <h5><i class="fas fa-plus-circle"></i> Add Transaction</h5>
+            </div>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <div class="pd-form-row">
+                    <div class="pd-form-group">
+                        <label>Day</label>
+                        {{ form.day }}
+                    </div>
+                    <div class="pd-form-group">
+                        <label><span class="required">*</span> Date</label>
+                        {{ form.date }}
+                    </div>
+                    <div class="pd-form-group">
+                        <label><span class="required">*</span> Description</label>
+                        {{ form.description }}
+                    </div>
+                    <div class="pd-form-group">
+                        <label>Paid by</label>
+                        {{ form.paid_by }}
+                    </div>
+                    <div class="pd-form-group">
+                        <label>Received by</label>
+                        {{ form.received_by }}
+                    </div>
+                    <div class="pd-form-group">
+                        <label><span class="required">*</span> Category</label>
+                        {{ form.category }}
+                    </div>
+                    <div class="pd-form-group">
+                        <label>Cash-In</label>
+                        {{ form.cash_in }}
+                    </div>
+                    <div class="pd-form-group">
+                        <label>Cash-Out</label>
+                        {{ form.cash_out }}
+                    </div>
+                </div>
+                <button type="submit" class="pd-btn-submit">
+                    <i class="fas fa-save"></i> Add Transaction
+                </button>
+                {{ form.person.as_hidden }}
+            </form>
+        </div>
+
+        <!-- ===== TRANSACTIONS TABLE WITH INLINE EDIT & DELETE ===== -->
+        <div class="pd-table-wrap">
+            <table class="pd-table">
                 <thead>
                     <tr>
+                        <th>#</th>
+                        <th>Day</th>
                         <th>Date</th>
-                        <th>Expense & Type</th>
+                        <th>Description</th>
+                        <th>Paid by</th>
+                        <th>Received by</th>
                         <th>Category</th>
-                        <th>Amount</th>
-                        <th>Note</th>
+                        <th class="text-end">Cash-In</th>
+                        <th class="text-end">Cash-Out</th>
+                        <th class="text-end">Balance</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for expense in expenses|slice:":10" %}
-                    <tr>
-                        <td>{{ expense.date|date:"Y-m-d" }}</td>
-                        <td>{{ expense.expense }}</td>
-                        <td>
-                            <span class="category-badge">
-                                {{ expense.get_category_display }}
-                            </span>
+                <tbody id="pdTableBody">
+                    {% for tx in transactions %}
+                    <tr data-id="{{ tx.id }}">
+                        <td>{{ forloop.counter }}</td>
+                        <td class="pd-editable" data-field="day">
+                            <span class="cell-value">{{ tx.day|default:"—" }}</span>
+                            <input type="text" value="{{ tx.day|default:'' }}" class="edit-input" style="display:none; width:80px;">
                         </td>
-                        <td class="amount">AED{{ expense.price|floatformat:0|intcomma }}</td>
-                        <td class="notes">{{ expense.note|truncatechars:30|default:"—" }}</td>
-
+                        <td class="pd-editable" data-field="date">
+                            <span class="cell-value">{{ tx.date|date:"Y-m-d" }}</span>
+                            <input type="date" value="{{ tx.date|date:'Y-m-d' }}" class="edit-input" style="display:none; width:120px;">
+                        </td>
+                        <td class="pd-editable" data-field="description">
+                            <span class="cell-value">{{ tx.description|truncatechars:30 }}</span>
+                            <input type="text" value="{{ tx.description }}" class="edit-input" style="display:none; width:150px;">
+                        </td>
+                        <td class="pd-editable" data-field="paid_by">
+                            <span class="cell-value">{{ tx.paid_by|default:"—" }}</span>
+                            <input type="text" value="{{ tx.paid_by|default:'' }}" class="edit-input" style="display:none; width:100px;">
+                        </td>
+                        <td class="pd-editable" data-field="received_by">
+                            <span class="cell-value">{{ tx.received_by|default:"—" }}</span>
+                            <input type="text" value="{{ tx.received_by|default:'' }}" class="edit-input" style="display:none; width:100px;">
+                        </td>
+                        <td class="pd-editable" data-field="category">
+                            <span class="cell-value">{{ tx.get_category_display }}</span>
+                            <select class="edit-input" style="display:none; width:100px;">
+                                {% for cat, label in tx.CATEGORY_CHOICES %}
+                                <option value="{{ cat }}" {% if tx.category == cat %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="pd-editable text-end" data-field="cash_in">
+                            <span class="cell-value pd-cash-in">
+                                {% if tx.cash_in > 0 %}{{ tx.cash_in|floatformat:0 }}{% else %}—{% endif %}
+                            </span>
+                            <input type="number" step="0.01" value="{{ tx.cash_in }}" class="edit-input" style="display:none; width:80px;">
+                        </td>
+                        <td class="pd-editable text-end" data-field="cash_out">
+                            <span class="cell-value pd-cash-out">
+                                {% if tx.cash_out > 0 %}{{ tx.cash_out|floatformat:0 }}{% else %}—{% endif %}
+                            </span>
+                            <input type="number" step="0.01" value="{{ tx.cash_out }}" class="edit-input" style="display:none; width:80px;">
+                        </td>
+                        <td class="text-end pd-balance-cell">
+                            AED {{ tx.balance|floatformat:0|intcomma }}
+                        </td>
+                        <td class="text-center">
+                            <div class="pd-actions">
+                                <button class="btn-icon edit-btn" onclick="startEditRow(this)" title="Edit">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <button class="btn-icon save-btn" onclick="saveRow(this)" title="Save" style="display:none;">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn-icon cancel-btn" onclick="cancelEditRow(this)" title="Cancel" style="display:none;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                <button class="btn-icon delete-btn" onclick="deleteTransaction('{{ tx.id }}', '{{ tx.description|escapejs }}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="11">
+                            <div class="pd-empty">
+                                <i class="fas fa-receipt"></i>
+                                <h5>No transactions found</h5>
+                                <p>Add a new transaction using the form above.</p>
+                            </div>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="7" class="text-end"><strong>TOTAL</strong></td>
+                        <td class="text-end pd-cash-in"><strong>AED {{ total_cash_in|floatformat:0|intcomma }}</strong></td>
+                        <td class="text-end pd-cash-out"><strong>AED {{ total_cash_out|floatformat:0|intcomma }}</strong></td>
+                        <td class="text-end pd-balance-cell {% if net_balance >= 0 %}pd-cash-in{% else %}pd-cash-out{% endif %}">
+                            <strong>AED {{ net_balance|floatformat:0|intcomma }}</strong>
+                        </td>
+                        <td></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
 
-        {% if expenses.count > 10 %}
-        <div class="view-all">
-            <a href="#" class="btn-secondary" id="viewAllExpenses">
-                <i class="fas fa-eye"></i>
-                View All {{ expenses.count }} Expenses
-            </a>
-        </div>
-        {% endif %}
-
-        {% else %}
-        <div class="empty-state">
-            <i class="fas fa-receipt"></i>
-            <h3>No Expenses Recorded</h3>
-            <p>No expenses have been recorded for this employee yet.</p>
-        </div>
-        {% endif %}
-    </div>
-
-    <!-- یادداشت‌ها -->
-    {% if employee_info.notes %}
-    <div class="section notes-section">
-        <div class="section-header">
-            <h2>
-                <i class="fas fa-sticky-note"></i>
-                Notes & Comments
-            </h2>
-        </div>
-
-        <div class="notes-content">
-            {{ employee_info.notes|linebreaks }}
-        </div>
-    </div>
-    {% endif %}
-
-    <!-- اقدامات سریع -->
-    <div class="section quick-actions">
-        <div class="section-header">
-            <h2>
-                <i class="fas fa-bolt"></i>
-                Quick Actions
-            </h2>
-        </div>
-
-        <div class="action-list">
-            <a href="{% url 'admin:employee_employee_change' employee.id %}" class="action-item">
-                <div class="action-icon">
-                    <i class="fas fa-user-edit"></i>
-                </div>
-                <div class="action-content">
-                    <h4>Edit Profile</h4>
-                    <p>Update employee information</p>
-                </div>
-            </a>
-            <a href="{% url 'admin:employee_employee_delete' employee.id %}" class="action-item"
-                onclick="return confirm('Are you sure you want to delete this employee?');"
-                style="border-color: var(--danger-color);">
-                <div class="action-icon" style="background: rgba(239, 71, 111, 0.1);">
-                    <i class="fas fa-trash-alt" style="color: var(--danger-color);"></i>
-                </div>
-                <div class="action-content">
-                    <h4>Delete Employee</h4>
-                    <p>Permanently remove this employee</p>
-                </div>
-            </a>
-        </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // نمایش تمام هزینه‌ها
-        const viewAllExpenses = document.getElementById('viewAllExpenses');
-        if (viewAllExpenses) {
-            viewAllExpenses.addEventListener('click', function (e) {
-                e.preventDefault();
-                const expenseRows = document.querySelectorAll('.expense-history tbody tr');
-                expenseRows.forEach(row => {
-                    row.style.display = 'table-row';
-                });
-                this.style.display = 'none';
-            });
+// ============================================================
+// CSRF TOKEN
+// ============================================================
+function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === 'csrftoken=') {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
         }
+    }
+    return cookieValue;
+}
+const csrftoken = getCSRFToken();
 
-        // قالب‌بندی ارز
-        function formatCurrency(amount) {
-            return 'AED' + parseFloat(amount).toLocaleString('en-US', {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0
-            });
+// ============================================================
+// INLINE EDIT
+// ============================================================
+let editingRow = null;
+let originalValues = {};
+
+// Double-click to edit
+document.querySelectorAll('.pd-editable').forEach(function(cell) {
+    cell.addEventListener('dblclick', function(e) {
+        e.stopPropagation();
+        const row = this.closest('tr');
+        const rowId = row.dataset.id;
+        
+        if (!rowId) {
+            console.error('Row ID not found');
+            return;
         }
+        
+        if (editingRow && editingRow !== rowId) {
+            const prevRow = document.querySelector(`tr[data-id="${editingRow}"]`);
+            if (prevRow) {
+                saveRow(prevRow.querySelector('.save-btn'));
+            }
+        }
+        
+        if (!row.classList.contains('editing')) {
+            startEditRow(row);
+        }
+        
+        if (!this.classList.contains('editing')) {
+            this.classList.add('editing');
+            const input = this.querySelector('.edit-input');
+            if (input) {
+                input.style.display = 'block';
+                input.focus();
+                input.select();
+            }
+        }
+    });
+});
 
-        // قالب‌بندی تمام مقادیر ارزی
-        document.querySelectorAll('.amount, .value, .stat-value').forEach(el => {
-            const text = el.textContent.trim();
-            if (text.startsWith('AED')) {
-                const amount = parseFloat(text.replace('AED', '').replace(/,/g, ''));
-                if (!isNaN(amount)) {
-                    el.textContent = formatCurrency(amount);
+function startEditRow(btn) {
+    const row = btn.closest('tr');
+    const rowId = row.dataset.id;
+    
+    if (editingRow && editingRow !== rowId) {
+        const prevRow = document.querySelector(`tr[data-id="${editingRow}"]`);
+        if (prevRow) {
+            saveRow(prevRow.querySelector('.save-btn'));
+        }
+    }
+    
+    originalValues[rowId] = {};
+    row.querySelectorAll('.pd-editable').forEach(function(cell) {
+        const field = cell.dataset.field;
+        const value = cell.querySelector('.cell-value').textContent.trim();
+        originalValues[rowId][field] = value;
+    });
+    
+    row.classList.add('editing');
+    row.querySelector('.edit-btn').style.display = 'none';
+    row.querySelector('.save-btn').style.display = 'inline-flex';
+    row.querySelector('.cancel-btn').style.display = 'inline-flex';
+    editingRow = rowId;
+}
+
+function cancelEditRow(btn) {
+    const row = btn.closest('tr');
+    const rowId = row.dataset.id;
+    
+    if (!rowId || !originalValues[rowId]) return;
+    
+    row.querySelectorAll('.pd-editable.editing').forEach(function(cell) {
+        const field = cell.dataset.field;
+        cell.querySelector('.cell-value').textContent = originalValues[rowId][field] || '—';
+        cell.classList.remove('editing');
+        const input = cell.querySelector('.edit-input');
+        if (input) input.style.display = 'none';
+    });
+    
+    row.classList.remove('editing');
+    row.querySelector('.edit-btn').style.display = 'inline-flex';
+    row.querySelector('.save-btn').style.display = 'none';
+    row.querySelector('.cancel-btn').style.display = 'none';
+    editingRow = null;
+    showToast('✖️ Editing cancelled', 'warning');
+}
+
+function saveRow(btn) {
+    const row = btn.closest('tr');
+    const rowId = row.dataset.id;
+    const changes = {};
+    let hasChanges = false;
+    
+    row.querySelectorAll('.pd-editable.editing').forEach(function(cell) {
+        const field = cell.dataset.field;
+        const input = cell.querySelector('.edit-input');
+        if (!input) return;
+        
+        const newValue = input.value.trim();
+        const oldValue = originalValues[rowId] ? originalValues[rowId][field] || '' : '';
+        
+        if (newValue !== oldValue) {
+            changes[field] = newValue;
+            hasChanges = true;
+        }
+        
+        // Update display
+        const displayValue = newValue || '—';
+        cell.querySelector('.cell-value').textContent = displayValue;
+        cell.classList.remove('editing');
+        input.style.display = 'none';
+    });
+    
+    row.classList.remove('editing');
+    row.querySelector('.edit-btn').style.display = 'inline-flex';
+    row.querySelector('.save-btn').style.display = 'none';
+    row.querySelector('.cancel-btn').style.display = 'none';
+    editingRow = null;
+    
+    if (hasChanges && Object.keys(changes).length > 0) {
+        fetch(`/employee/api/transaction/${rowId}/update/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(changes)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('✅ Transaction updated successfully', 'success');
+                
+                // Update balance in table
+                const balanceCell = row.querySelector('.pd-balance-cell');
+                if (balanceCell && data.person_balance !== undefined) {
+                    balanceCell.textContent = 'AED ' + data.person_balance.toFixed(0);
                 }
+                
+                // Update profile balance
+                const profileBalance = document.querySelector('.pd-balance-amount');
+                if (profileBalance && data.person_balance !== undefined) {
+                    profileBalance.textContent = 'AED ' + data.person_balance.toFixed(0);
+                }
+                
+                // Update stats
+                updateStats();
+            } else {
+                showToast('❌ ' + data.error, 'error');
+                cancelEditRow(row.querySelector('.cancel-btn'));
+            }
+        })
+        .catch(function() {
+            showToast('❌ Network error', 'error');
+            cancelEditRow(row.querySelector('.cancel-btn'));
+        });
+    }
+}
+
+// ============================================================
+// DELETE TRANSACTION
+// ============================================================
+function deleteTransaction(id, description) {
+    if (confirm(`Are you sure you want to delete transaction "${description}"?`)) {
+        fetch(`/employee/api/transaction/${id}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('✅ Transaction deleted successfully', 'success');
+                // Remove row
+                const row = document.querySelector(`tr[data-id="${id}"]`);
+                if (row) {
+                    row.remove();
+                    // Update row numbers
+                    document.querySelectorAll('#pdTableBody tr[data-id]').forEach(function(row, index) {
+                        row.querySelector('td:first-child').textContent = index + 1;
+                    });
+                }
+                // Update stats and balance
+                updateStats();
+                // Reload page after delay to update totals
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
+            } else {
+                showToast('❌ ' + data.error, 'error');
+            }
+        })
+        .catch(function() {
+            showToast('❌ Network error', 'error');
+        });
+    }
+}
+
+// ============================================================
+// UPDATE STATS
+// ============================================================
+function updateStats() {
+    fetch(window.location.href, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Update stats
+        const stats = doc.querySelectorAll('.pd-stat-value');
+        document.querySelectorAll('.pd-stat-value').forEach(function(el, index) {
+            if (stats[index]) {
+                el.textContent = stats[index].textContent;
             }
         });
-
-        // لودینگ دکمه‌ها
-        const actionButtons = document.querySelectorAll('.btn-primary, .btn-secondary, .action-item');
-        actionButtons.forEach(button => {
-            button.addEventListener('click', function () {
-                if (!this.classList.contains('disabled')) {
-                    const originalHTML = this.innerHTML;
-                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-                    this.classList.add('disabled');
-
-                    setTimeout(() => {
-                        this.innerHTML = originalHTML;
-                        this.classList.remove('disabled');
-                    }, 2000);
-                }
-            });
-        });
-
-        // ایجاد نمودار دسته‌بندی هزینه‌ها
-        const categoryProgressBars = document.querySelectorAll('.category-progress .progress-fill');
-        categoryProgressBars.forEach(bar => {
-            const width = bar.style.width;
-            bar.style.width = '0%';
-            setTimeout(() => {
-                bar.style.width = width;
-            }, 500);
-        });           
+    })
+    .catch(function() {
+        location.reload();
     });
+}
+
+// ============================================================
+// ESCAPE KEY
+// ============================================================
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && editingRow) {
+        const row = document.querySelector(`tr[data-id="${editingRow}"]`);
+        if (row) {
+            cancelEditRow(row.querySelector('.cancel-btn'));
+        }
+    }
+});
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(message, type) {
+    const colors = {
+        success: '#27ae60',
+        error: '#e74c3c',
+        warning: '#f39c12',
+        info: '#3498db'
+    };
+    
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed; top: 24px; right: 24px; padding: 12px 24px;
+        background: ${colors[type] || colors.info}; color: white;
+        border-radius: 8px; font-weight: 500; z-index: 9999;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 3000);
+}
 </script>
+
+<style>
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+</style>
+
 {% endblock %}

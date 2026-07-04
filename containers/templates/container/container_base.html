@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
-<html dir="rtl">
+<html dir="ltr">
 
 <head>
   <meta charset="utf-8">
@@ -12,111 +12,293 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
   <link rel="stylesheet" href="{% static 'css/container_style.css' %}">
+
+  <style>
+        /* ============================================================
+           RESET & BASE - فول اسکرین کامل
+           ============================================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: 100vh;
+            background: #ffffff;
+            padding: 0 !important;
+            margin: 0 !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        /* ============================================================
+           حذف محدودیت container از Bootstrap
+           ============================================================ */
+        .container {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .container-fluid,
+        .row,
+        .col {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        /* ============================================================
+           همه کانتینرهای اصلی - فول اسکرین
+           ============================================================ */
+        .container-list-minimal,
+        .inventory-list-minimal,
+        .expense-wrapper,
+        .cd-wrapper,
+        .premium-container,
+        .glass-card,
+        .excel-box,
+        .main-content,
+        .py-4,
+        .dashboard-layout {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+        }
+
+        /* ============================================================
+           باکس اصلی - فول اسکرین
+           ============================================================ */
+        .excel-box {
+            background: white;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            min-height: 100vh;
+            border: none !important;
+        }
+
+        /* ============================================================
+           NAVBAR - فول اسکرین
+           ============================================================ */
+        .navbar {
+            border-radius: 0 !important;
+            margin: 0 !important;
+            padding: 0 24px !important;
+        }
+
+        /* ============================================================
+           محتوای داخل باکس - با فاصله مناسب
+           ============================================================ */
+        .excel-menu {
+            padding: 8px 24px;
+            background: #ffffff;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .page-header {
+            padding: 20px 24px 0 24px;
+        }
+
+        .excel-toolbar {
+            padding: 12px 24px;
+            border-bottom: 1px solid #ffffff;
+        }
+
+        .summary-cards {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .table-wrapper {
+            padding: 0 24px 20px 24px;
+        }
+
+        .add-form-row {
+            padding: 16px 24px;
+        }
+
+        .add-row-btn {
+            margin: 0 24px 16px 24px;
+            width: calc(100% - 48px);
+        }
+
+        .status-bar {
+            padding: 12px 24px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        /* ============================================================
+           MESSAGES
+           ============================================================ */
+        .messages-container {
+            padding: 12px 24px !important;
+            margin: 0 !important;
+        }
+
+        /* ============================================================
+           RESPONSIVE
+           ============================================================ */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0 12px !important;
+            }
+            .excel-menu {
+                padding: 8px 12px;
+            }
+            .page-header {
+                padding: 12px 16px 0 16px;
+            }
+            .excel-toolbar {
+                padding: 8px 12px;
+            }
+            .summary-cards {
+                padding: 12px 16px;
+            }
+            .table-wrapper {
+                padding: 0 12px 12px 12px;
+            }
+            .add-form-row {
+                padding: 12px 16px;
+            }
+            .add-row-btn {
+                margin: 0 12px 12px 12px;
+                width: calc(100% - 24px);
+            }
+            .status-bar {
+                padding: 8px 12px;
+            }
+            .messages-container {
+                padding: 8px 12px !important;
+            }
+        }
+    </style>
 
   {% block extra_head %}{% endblock %}
 </head>
 
 <body>
-    <div class="dashboard-layout">
-      <!-- Top Navbar -->
-      <nav class="top-navbar">
-        <div class="navbar-container">
-          <div class="navbar-logo">
-            <div class="logo-text">
-              <h2>ALMUQBIL</h2>
+
+<!-- ===== NAVBAR ===== -->
+<nav class="navbar">
+    <div class="navbar-container">
+        <div class="navbar-brand">
+            <div class="brand-text">
+                ALMUQBIL
             </div>
-          </div>
-
-          <!-- Mobile Menu Button -->
-          <button class="mobile-menu-btn" id="mobileMenuBtn">
-            <i class="fas fa-bars"></i>
-          </button>
-
-          <div class="navbar-menu" id="navbarMenu">
-            <ul class="menu-list">
-              <li class="menu-item">
-                <a href="{% url 'accounts:home' %}" class="menu-link" data-app="sales">
-                  <i class="menu-icon fas fa-shopping-cart"></i>
-                  <span class="menu-label">Home</span>
-                </a>
-              </li>
-              <li class="menu-item">
-                <a href="{% url 'daily_sale:transaction_list' %}" class="menu-link active" data-app="sales">
-                  <i class="menu-icon fas fa-shopping-cart"></i>
-                  <span class="menu-label">Daily Sales</span>
-                </a>
-              </li>
-              <li class="menu-item">
-                <a href="{% url 'containers:list' %}" class="menu-link" data-app="containers">
-                  <i class="menu-icon fas fa-shipping-fast"></i>
-                  <span class="menu-label">Containers</span>
-                </a>
-              </li>
-              <li class="menu-item">
-                <a href="{% url 'employee:person_list' %}" class="menu-link" data-app="employees">
-                  <i class="menu-icon fas fa-users"></i>
-                  <span class="menu-label">Employees</span>
-                </a>
-              </li>
-              <li class="menu-item">
-                <a href="{% url 'expenses:expense_list' %}" class="menu-link" data-app="expenses">
-                  <i class="menu-icon fas fa-money-bill-wave"></i>
-                  <span class="menu-label">Expenses</span>
-                </a>
-              </li>
-              <li class="menu-item">
-                <a href="#" class="menu-link" data-app="reports">
-                  <i class="menu-icon fas fa-chart-pie"></i>
-                  <span class="menu-label">Reports</span>
-                </a>
-              </li>
-            </ul>
-          </div>
-
-          <div class="navbar-user">
-            <div class="user-profile">
-              <i class="fas fa-user-circle"></i>
-              <span>
-                {% if user.get_full_name %}
-                {{ user.get_full_name }}
-                {% else %}
-                {{ user.username }}
-                {% endif %}
-              </span>
-              <i class="fas fa-chevron-down"></i>
-            </div>
-          </div>
         </div>
-      </nav>
-    </div>
 
-  <main class="py-4">
-    <div class="container">
-      {% if messages %}
-      <div class="messages-container mb-4">
+        <button class="mobile-toggle" id="mobileToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <ul class="navbar-menu" id="navbarMenu">
+            <li>
+                <a href="{% url 'accounts:home' %}" class="{% if request.resolver_match.app_name == 'accounts' %}active{% endif %}">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'daily_sale:transaction_list' %}" class="{% if request.resolver_match.app_name == 'daily_sale' %}active{% endif %}">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Daily Sales</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'containers:list' %}" class="{% if request.resolver_match.app_name == 'containers' %}active{% endif %}">
+                    <i class="fas fa-ship"></i>
+                    <span>Containers</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'employee:person_list' %}" class="{% if request.resolver_match.app_name == 'employee' %}active{% endif %}">
+                    <i class="fas fa-users"></i>
+                    <span>People</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'reports:dashboard' %}" class="{% if request.resolver_match.app_name == 'reports' %}active{% endif %}">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>In-Out</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="navbar-user">
+            <div class="user-avatar">
+                {{ user.username|slice:":1"|upper }}
+            </div>
+            <div class="user-info">
+                <div class="user-name">{{ user.get_full_name|default:user.username }}</div>
+                <div class="user-role">
+                    {% if user.is_superuser %}Admin{% else %}User{% endif %}
+                </div>
+            </div>
+            <a href="{% url 'accounts:logout' %}" class="logout-btn" title="Logout">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        </div>
+    </div>
+</nav>
+
+<!-- ===== MAIN CONTENT ===== -->
+<main style="width:100%; max-width:100%; padding:0; margin:0;">
+
+    <!-- ===== MESSAGES ===== -->
+    {% if messages %}
+    <div class="messages-container">
         {% for message in messages %}
         <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-          <div class="d-flex align-items-center">
-            <i class="fas 
-              {% if message.tags == 'success' %}fa-check-circle
-              {% elif message.tags == 'error' %}fa-exclamation-circle
-              {% elif message.tags == 'warning' %}fa-exclamation-triangle
-              {% else %}fa-info-circle{% endif %}
-              me-2"></i>
-            <span>{{ message }}</span>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            <div class="d-flex align-items-center">
+                <i class="fas 
+                    {% if message.tags == 'success' %}fa-check-circle
+                    {% elif message.tags == 'error' %}fa-exclamation-circle
+                    {% elif message.tags == 'warning' %}fa-exclamation-triangle
+                    {% else %}fa-info-circle{% endif %}
+                    me-2"></i>
+                <span>{{ message }}</span>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         {% endfor %}
-      </div>
-      {% endif %}
-
-      {% block content %}{% endblock %}
     </div>
-  </main>
-</body>
+    {% endif %}
 
+    <!-- ===== CONTENT ===== -->
+    {% block content %}{% endblock %}
+
+</main>
+
+<script>
+    // ===== Mobile Menu Toggle =====
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggle = document.getElementById('mobileToggle');
+        const menu = document.getElementById('navbarMenu');
+
+        if (toggle && menu) {
+            toggle.addEventListener('click', function() {
+                menu.classList.toggle('open');
+            });
+
+            menu.querySelectorAll('a').forEach(function(link) {
+                link.addEventListener('click', function() {
+                    if (window.innerWidth < 768) {
+                        menu.classList.remove('open');
+                    }
+                });
+            });
+        }
+    });
+</script>
+
+{% block extra_js %}{% endblock %}
+</body>
 </html>

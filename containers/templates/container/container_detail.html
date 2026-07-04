@@ -1,104 +1,169 @@
+<!-- containers/templates/containers/container_detail.html -->
 {% extends 'container/container_base.html' %}
 {% load static %}
+{% load humanize %}
 
-{% block title %}Almuqbil | container_datail{% endblock %}
+{% block title %}Almuqbil | Container {{ container.container_no }}{% endblock %}
 
 {% block content %}
-<div class="container-detail">
-    <div class="container">
-        <div class="content-wrapper">
-            <div class="page-header">
-                <h1>{{ container.container_number }}</h1>
-                <p class="description">{{ container.name }}</p>
-                {% if container.description %}
-                <p class="description">{{ container.description }}</p>
-                {% endif %}
-            </div>
 
-            <div class="info-section">
-                <div class="row">
-                    <div class="col-lg-8 mb-4">
-                        <div class="info-card">
-                            <h5>General Information</h5>
-                            <ul class="info-list">
-                                <li>
-                                    <strong>Price:</strong>
-                                    <span class="price-value">${{ container.price|default:"0" }}</span>
-                                </li>
-                                <li>
-                                    <strong>Company:</strong>
-                                    <span>{{ container.company.name|default:"No company" }}</span>
-                                </li>
-                                <li>
-                                    <strong>Created Date:</strong>
-                                    <span>{{ container.created_at|date:"F j, Y" }}</span>
-                                </li>
-                                {% if container.updated_at %}
-                                <li>
-                                    <strong>Last Updated:</strong>
-                                    <span>{{ container.updated_at|date:"F j, Y" }}</span>
-                                </li>
-                                {% endif %}
-                            </ul>
-                        </div>
+<div class="cd-wrapper">
+
+    <!-- ===== BACK BUTTON ===== -->
+    <a href="{% url 'containers:list' %}" class="cd-back">
+        <i class="fas fa-arrow-left"></i> Back to Containers
+    </a>
+
+    <!-- ===== MAIN BOX ===== -->
+    <div class="cd-box">
+
+        <!-- ===== HEADER ===== -->
+        <div class="cd-header">
+            <div class="cd-header-top">
+                <div class="cd-header-title">
+                    <h1><i class="fas fa-ship"></i> {{ container.container_no }}</h1>
+                    <div>
+                        <span class="code-badge"><i class="fas fa-barcode"></i> {{ container.code|default:"No Code"}}</span>
+                        <span class="code-badge" style="margin-left:8px;"><i class="fas fa-user-tie"></i> {{container.supplier|default:"No Supplier" }}</span>
                     </div>
-                    
                 </div>
-            </div>
-
-            <div class="divider"></div>
-
-            <div class="products-section">
-                <h4 class="section-title">Products in this Container</h4>
-
-                <div class="products-table">
-                    <table class="table">
-                        <thead class="table-header">
-                            <tr>
-                                <th>Code</th>
-                                <th>Product Name</th>
-                                <th>Inventory</th>
-                                <th>Unit Price</th>
-                                <th>Sold Price</th>
-                                <th>Total Value</th>
-                            </tr>
-                        </thead>
-                        <tbody class="table-body">
-                            {% for item in container.Inventory_container.all %}
-                            <tr>
-                                <td>
-                                    <span class="product-code">{{ item.code|default:"N/A" }}</span>
-                                </td>
-                                <td>
-                                    <span class="product-name">{{ item.product_name|default:"Unnamed Product" }}</span>
-                                </td>
-                                <td>
-                                    <span class="inventory-badge">{{ item.in_stock_qty|default:0 }}</span>
-                                </td>
-                                <td>
-                                    <span class="price-value">${{ item.unit_price|default:"0" }}</span>
-                                </td>
-                                <td>
-                                    <span class="sold-price">${{ item.sold_price|default:"0" }}</span>
-                                </td>
-                                <td>
-                                    <span class="total-price">${{ item.total_sold_qty|default:"0" }}</span>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="6">
-                                    <div class="empty-state"> 
-                                        <p>No products found in this container</p>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <div class="cd-header-stats">
+                    <div class="cd-header-stat">
+                        <div class="value {% if container.net_value >= 0 %}positive{% else %}negative{% endif %}">
+                            AED {{ container.net_value|default:0|floatformat:0|intcomma }}
+                        </div>
+                        <div class="label">Net Value</div>
+                    </div>
+                    <div class="cd-header-stat">
+                        <div class="value">AED {{ container.total_sales|default:0|floatformat:0|intcomma }}</div>
+                        <div class="label">Total Sales</div>
+                    </div>
+                    <div class="cd-header-stat">
+                        <div class="value">AED {{ container.total_expenses|default:0|floatformat:0|intcomma }}</div>
+                        <div class="label">Total Expenses</div>
+                    </div>
+                    <div class="cd-header-stat">
+                        <div class="value">{{ inventory_items|length }}</div>
+                        <div class="label">Items</div>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- ===== INFO ROW ===== -->
+        <div class="cd-info-row">
+            <div class="cd-info-item">
+                <span class="label">Arrival Date</span>
+                <span class="value">{{ container.arrival_date|default:"—" }}</span>
+            </div>
+            <div class="cd-info-item">
+                <span class="label">Container No.</span>
+                <span class="value">{{ container.container_no }}</span>
+            </div>
+            <div class="cd-info-item">
+                <span class="label">Code</span>
+                <span class="value">{{ container.code|default:"—" }}</span>
+            </div>
+            <div class="cd-info-item">
+                <span class="label">Supplier</span>
+                <span class="value">{{ container.supplier|default:"—" }}</span>
+            </div>
+            <div class="cd-info-item">
+                <span class="label">Total Sales</span>
+                <span class="value">AED {{ container.total_sales|default:0|floatformat:0|intcomma }}</span>
+            </div>
+            <div class="cd-info-item">
+                <span class="label">Total Expenses</span>
+                <span class="value">AED {{ container.total_expenses|default:0|floatformat:0|intcomma }}</span>
+            </div>
+        </div>
+
+        <!-- ===== INVENTORY SECTION ===== -->
+        <div class="cd-section">
+            <div class="cd-section-title">
+                <i class="fas fa-boxes"></i> Inventory Items
+                <span class="badge">{{ inventory_items|length }} items</span>
+            </div>
+
+            <div class="cd-table-wrap">
+                <table class="cd-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Code</th>
+                            <th>Product Name</th>
+                            <th class="text-center">In Stock</th>
+                            <th class="text-center">Sold</th>
+                            <th class="text-end">Unit Price</th>
+                            <th class="text-end">Total Value</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in inventory_items %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><span class="product-code">{{ item.code|default:"—" }}</span></td>
+                            <td>{{ item.product_name }}</td>
+                            <td class="text-center">
+                                {% with in_stock=item.in_stock_qty|default:0|add:"-"|add:item.total_sold_qty|default:0%}
+                                <span class="inventory-badge 
+                                    {% if in_stock > 5 %}in-stock
+                                    {% elif in_stock > 0 %}low-stock
+                                    {% else %}out-stock{% endif %}">
+                                    {{ in_stock }}
+                                </span>
+                                {% endwith %}
+                            </td>
+                            <td class="text-center">{{ item.total_sold_qty|default:0|intcomma }}</td>
+                            <td class="text-end price-value">AED {{ item.unit_price|default:0|floatformat:0|intcomma }}
+                            </td>
+                            <td class="text-end total-value">
+                                {% with in_stock=item.in_stock_qty|default:0|add:"-"|add:item.total_sold_qty|default:0%}
+                                AED {{ in_stock|floatformat:0|intcomma }}
+                                {% endwith %}
+                            </td>
+                            <td class="text-center">
+                                <span class="inventory-badge 
+                                    {% if item.current_stock > 5 %}in-stock
+                                    {% elif item.current_stock > 0 %}low-stock
+                                    {% else %}out-stock{% endif %}">
+                                    {{ item.current_stock }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8">
+                                <div class="cd-empty">
+                                    <i class="fas fa-box-open"></i>
+                                    <h4>No items in this container</h4>
+                                    <p>Add inventory items to this container from the inventory page.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Animate numbers on load
+        document.querySelectorAll('.cd-header-stat .value').forEach(function (el) {
+            const original = el.textContent;
+            el.textContent = '0';
+            setTimeout(function () {
+                el.textContent = original;
+            }, 300);
+        });
+    });
+</script>
 {% endblock %}

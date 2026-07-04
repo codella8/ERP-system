@@ -4,7 +4,6 @@ from .models import UserProfile
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
-
 class UpdateUserInfo(forms.ModelForm):
     phone = forms.CharField(
         required=True,

@@ -1,319 +1,522 @@
-
 {% extends 'employee/employee_base.html' %}
 {% load static %}
 {% load humanize %}
 
-{% block title %}Almubil | EmployeeList{% endblock %}
+{% block title %}Almubil | People Management{% endblock %}
 
 {% block content %}
+
 <div class="employee-dashboard">
-    <!-- هدر صفحه -->
-    <div class="page-header">
-        <div class="header-content">
-            <h1>
-                <i class="fas fa-user-tie"></i>
-                Employee Management Dashboard
-            </h1>
-            <p class="subtitle">Comprehensive overview of all employees, payments, and expenses</p>
-        </div>
-    </div>
-
-    <!-- کارت‌های آماری -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon">
-                <i class="fas fa-users"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-value">{{ total_stats.active_employees|intcomma }}</div>
-                <div class="stat-label">Active Employees</div>
-            </div>
-        </div>
-
-        <div class="stat-card paid">
-            <div class="stat-icon">
-                <i class="fas fa-money-bill-wave"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-value">AED{{ total_stats.total_paid|floatformat:0|intcomma }}</div>
-                <div class="stat-label">Total Paid</div>
-            </div>
-        </div>
-
-        <div class="stat-card unpaid">
-            <div class="stat-icon">
-                <i class="fas fa-clock"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-value">AED{{ total_stats.total_remaining|floatformat:0|intcomma }}</div>
-                <div class="stat-label">Pending Balance</div>
-            </div>
-        </div>
-
-        <div class="stat-card expenses">
-            <div class="stat-icon">
-                <i class="fas fa-receipt"></i>
-            </div>
-            <div class="stat-content">
-                <div class="stat-value">AED{{ total_stats.total_expenses|floatformat:0|intcomma }}</div>
-                <div class="stat-label">Total Expenses</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- فیلترها -->
-    <div class="filter-section">
-        <form method="get" class="filter-form" id="filterForm">
-            <div class="filter-grid">
-                <div class="filter-group">
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" name="search" placeholder="Search employees..." value="{{ filters.search }}"
-                            autocomplete="off" id="searchInput">
-                    </div>
+    <!-- ===== PAGE HEADER ===== -->
+    <div class="page-header-custom">
+        <div class="row align-items-center">
+            <div class="col-md-7">
+                <h2><i class="fas fa-table me-2"></i> People Management</h2>
+                <div class="subtitle">
+                    <i class="fas fa-user-tie me-1"></i> Employees &amp;
+                    <i class="fas fa-hand-holding-usd me-1"></i> Money Changers |
                 </div>
             </div>
-        </form>
-    </div>
-
-    <!-- جدول کارمندان -->
-    <div class="table-container">
-        <div class="table-header">
-            <h3>
-                <i class="fas fa-list"></i>
-                Employee List
-            </h3>
-            <div class="table-info">
-                Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
-                employees
+            <div class="col-md-5 text-md-end mt-3 mt-md-0 header-actions">
+                <button class="btn btn-outline-light btn-sm me-2" onclick="window.location.reload()">
+                    <i class="fas fa-sync me-1"></i> Refresh
+                </button>
+                <button class="btn btn-outline-light btn-sm" onclick="exportToExcel()">
+                    <i class="fas fa-file-export me-1"></i> Export Excel
+                </button>
             </div>
         </div>
+    </div>
 
-        <table class="data-table">
+    <!-- ===== MESSAGES ===== -->
+    {% if messages %}
+    <div class="messages-container">
+        {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+            <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} me-2"></i>
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- ===== STATS ===== -->
+    <div class="stats-grid">
+        <div class="stat-card-custom">
+            <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+            <div class="stat-content">
+                <div class="stat-value">{{ stats.total|default:0|intcomma }}</div>
+                <div class="stat-label">Total People</div>
+            </div>
+        </div>
+        <div class="stat-card-custom">
+            <div class="stat-icon green"><i class="fas fa-user-tie"></i></div>
+            <div class="stat-content">
+                <div class="stat-value">{{ stats.employees|default:0|intcomma }}</div>
+                <div class="stat-label">Employees</div>
+            </div>
+        </div>
+        <div class="stat-card-custom">
+            <div class="stat-icon orange"><i class="fas fa-hand-holding-usd"></i></div>
+            <div class="stat-content">
+                <div class="stat-value">{{ stats.sarafs|default:0|intcomma }}</div>
+                <div class="stat-label">Money Changers</div>
+            </div>
+        </div>
+        <div class="stat-card-custom">
+            <div class="stat-icon purple"><i class="fas fa-dollar-sign"></i></div>
+            <div class="stat-content">
+                <div class="stat-value">AED{{ stats.total_balance|floatformat:0|default:0|intcomma }}</div>
+                <div class="stat-label">Total Balance</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== TOOLBAR ===== -->
+    <div class="toolbar-section">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="d-flex gap-2 flex-wrap">
+                    <input type="text" class="form-control form-control-sm" id="tableSearch" placeholder="Search..." style="width: 200px;">
+                </div>
+            </div>
+            <div class="col-md-6 text-md-end mt-2 mt-md-0">
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addPersonModal">
+                    <i class="fas fa-plus me-1"></i> Add New Person
+                </button>
+                <button class="btn btn-success btn-sm ms-2" data-bs-toggle="modal" data-bs-target="#addTransactionModal">
+                    <i class="fas fa-plus-circle me-1"></i> Add Transaction
+                </button>
+                <button class="btn btn-warning btn-sm ms-2" id="saveAllBtn">
+                    <i class="fas fa-save me-1"></i> Save All
+                </button>
+            </div>
+        </div>
+    </div>
+
+<!-- ===== EXCEL-STYLE TABLE WITH INLINE EDIT ===== -->
+<div class="excel-table-container">
+    <div class="table-responsive">
+        <table class="excel-table" id="peopleTable">
             <thead>
                 <tr>
-                    <th style="width: 250px;">Employee</th>
-                    <th>Position</th>
-                    <th>Salary</th>
-                    <th>Recieved employee</th>
-                    <th>Payment Status</th>
-                    <th>Service</th>
-                    <th style="width: 120px;">Actions</th>
+                    <th>#</th>
+                    <th>Person</th>
+                    <th>Day</th>
+                    <th>Date</th>
+                    <th>Description</th>
+                    <th>Paid by</th>
+                    <th>Received by</th>
+                    <th>Category</th>
+                    <th>Cash-In</th>
+                    <th>Cash-Out</th>
+                    <th>Balance</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for item in employees_data %}
-                <tr>
-                    <td>
-                        <div class="employee-cell">
-                            <div class="employee-avatar">
-                                {% with user=item.employee.employee.user %}
-                                {% if user.first_name and user.last_name %}
-                                {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
-                                {% elif user.first_name %}
-                                {{ user.first_name|first|upper }}
-                                {% else %}
-                                {{ user.email|first|upper }}
-                                {% endif %}
-                                {% endwith %}
-                            </div>
-                            <div class="employee-info">
-                                <div class="employee-name">
-                                    {% with user=item.employee.employee.user %}
-                                    {{ user.get_full_name|default:user.email }}
-                                    {% endwith %}
-                                </div>
-                                <div class="employee-email">
-                                    {% with user=item.employee.employee.user %}
-                                    {{ user.email }}
-                                    {% endwith %}
-                                </div>
-                            </div>
-                        </div>
+            <tbody id="peopleTableBody">
+                {% for transaction in transactions %}
+                <tr data-id="{{ transaction.id }}">
+                    <td>{{ forloop.counter }}</td>
+                    <td class="editable-cell" data-field="person_name">
+                        <span class="cell-value">{{ transaction.person.name }}</span>
+                        <input type="text" value="{{ transaction.person.name }}" class="edit-input" style="display:none; width:100px;">
                     </td>
-                    <td>
-                        <div class="position-cell">
-                            <div class="position-title">{{ item.employee.position|default:"—" }}</div>
-                            <div class="employment-type-badge">
-                                {{ item.employee.get_employment_type_display }}
-                            </div>
-                        </div>
+                    <td class="editable-cell" data-field="day">
+                        <span class="cell-value">{{ transaction.day|default:"—" }}</span>
+                        <input type="text" value="{{ transaction.day|default:'' }}" class="edit-input" style="display:none; width:80px;">
                     </td>
-                    <td>
-                        <div class="salary-details">
-                            <div>
-                                <div class="salary-label">Monthly Salary</div>
-                                <div class="salary-amount">AED{{ item.employee.salary_due|floatformat:0|intcomma }}</div>
-                            </div>
-                            {% if item.financials.total_expenses > 0 %}
-                            <div>
-                                <div class="salary-label">Expenses</div>
-                                <div class="expense-amount">AED{{ item.financials.total_expenses|floatformat:0|intcomma }}
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
+                    <td class="editable-cell" data-field="date">
+                        <span class="cell-value">{{ transaction.date|date:"Y-m-d" }}</span>
+                        <input type="date" value="{{ transaction.date|date:'Y-m-d' }}" class="edit-input" style="display:none; width:120px;">
                     </td>
-
-                    <td>
-                        <div class="salary-details">
-                            <div>
-                                <div class="salary-label">Recieved employee</div>
-                                <div class="salary-amount">AED{{ total_stats.total_paid|floatformat:0|intcomma }}</div>
-                            </div>
-                        </div>
+                    <td class="editable-cell" data-field="description">
+                        <span class="cell-value">{{ transaction.description|truncatechars:30 }}</span>
+                        <input type="text" value="{{ transaction.description }}" class="edit-input" style="display:none; width:150px;">
                     </td>
-                    <td>
-                        <div style="display: flex; flex-direction: column; gap: 10px;">
-                            <span class="status-badge {{ item.payment_status.badge_class }}">
-                                <i class="fas fa-{{ item.payment_status.icon }}"></i>
-                                {{ item.payment_status.label }}
-                            </span>
-
-                            {% if item.payment_progress > 0 %}
-                            <div class="progress-container">
-                                <div class="progress-bar">
-                                    <div class="progress-fill {{ item.payment_status.badge_class }}"></div>
-                                </div>
-                                <div class="progress-text">{{ item.payment_progress|floatformat:1 }}% paid</div>
-                            </div>
-                            {% endif %}
-
-                            {% if item.financials.remaining_balance > 0 %}
-                            <div style="font-size: 12px; color: var(--danger-color); font-weight: 500;">
-                                AED{{ item.financials.remaining_balance|floatformat:0|intcomma }} due
-                            </div>
-                            {% endif %}
-                        </div>
+                    <td class="editable-cell" data-field="paid_by">
+                        <span class="cell-value">{{ transaction.paid_by|default:"—" }}</span>
+                        <input type="text" value="{{ transaction.paid_by|default:'' }}" class="edit-input" style="display:none; width:100px;">
                     </td>
-                    <td>
-                        <div class="service-details">
-                            {% if item.employee.hire_date %}
-                            <div>
-                                <div class="salary-label">Hire Date</div>
-                                <div class="hire-date">{{ item.employee.hire_date|date:"M d, Y" }}</div>
-                            </div>
-                            {% if item.years_of_service %}
-                            <div>
-                                <div class="salary-label">Service</div>
-                                <div class="service-years">{{ item.years_of_service }} years</div>
-                            </div>
-                            {% endif %}
-                            {% else %}
-                            <span style="color: #6c757d; font-style: italic;">Not specified</span>
-                            {% endif %}
-                        </div>
+                    <td class="editable-cell" data-field="received_by">
+                        <span class="cell-value">{{ transaction.received_by|default:"—" }}</span>
+                        <input type="text" value="{{ transaction.received_by|default:'' }}" class="edit-input" style="display:none; width:100px;">
+                    </td>
+                    <td class="editable-cell" data-field="category">
+                        <span class="cell-value">{{ transaction.get_category_display }}</span>
+                        <select class="edit-input" style="display:none; width:100px;">
+                            {% for cat, label in transaction.CATEGORY_CHOICES %}
+                            <option value="{{ cat }}" {% if transaction.category == cat %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td class="editable-cell" data-field="cash_in">
+                        <span class="cell-value cash-in-value">{{ transaction.cash_in|floatformat:0 }}</span>
+                        <input type="number" step="0.01" value="{{ transaction.cash_in }}" class="edit-input" style="display:none; width:80px;">
+                    </td>
+                    <td class="editable-cell" data-field="cash_out">
+                        <span class="cell-value cash-out-value">{{ transaction.cash_out|floatformat:0 }}</span>
+                        <input type="number" step="0.01" value="{{ transaction.cash_out }}" class="edit-input" style="display:none; width:80px;">
+                    </td>
+                    <td class="balance-cell">
+                        <span class="balance-value" data-id="{{ transaction.id }}">
+                            AED{{ transaction.balance|floatformat:0 }}
+                        </span>
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <a href="{% url 'employee:employee_detail' item.employee.id %}" class="btn-action"
-                                title="View Details">
+                            <a href="{% url 'employee:person_detail' transaction.person.id %}" 
+                               class="btn btn-sm btn-outline-info" title="View Details">
                                 <i class="fas fa-eye"></i>
                             </a>
+                            <button class="btn btn-sm btn-outline-danger delete-transaction" 
+                                    data-id="{{ transaction.id }}" 
+                                    data-person="{{ transaction.person.name }}"
+                                    title="Delete Transaction">
+                                <i class="fas fa-trash"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6">
-                        <div class="empty-state">
-                            <i class="fas fa-user-slash"></i>
-                            <h4>No employees found</h4>
-                            <p>
-                                {% if filters.search or filters.status != 'all' or filters.type != 'all' %}
-                                Try adjusting your filters or
-                                <a href="{% url 'employee:employee_list' %}">clear all filters</a>
-                                {% else %}
-                                No employees have been added yet.
-                                <a href="{% url 'admin:employee_employee_add' %}">Add your first employee</a>
-                                {% endif %}
-                            </p>
-                        </div>
+                    <td colspan="12" class="text-center py-4">
+                        <i class="fas fa-receipt fa-3x d-block mb-2"></i>
+                        <h5>No transactions found</h5>
+                        <p class="text-muted">Add a new transaction using the button above.</p>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-
-    <!-- Pagination -->
-    {% if page_obj.paginator.num_pages > 1 %}
-    <div class="pagination-container">
-        <div class="pagination-info">
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-        </div>
-
-        <nav class="pagination-nav">
-            {% if page_obj.has_previous %}
-            <a href="?page=1{% for key,value in filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
-                class="pagination-btn" title="First Page">
-                <i class="fas fa-angle-double-left"></i>
-            </a>
-            <a href="?page={{ page_obj.previous_page_number }}{% for key,value in filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
-                class="pagination-btn" title="Previous Page">
-                <i class="fas fa-angle-left"></i>
-            </a>
-            {% else %}
-            <span class="pagination-btn disabled">
-                <i class="fas fa-angle-double-left"></i>
-            </span>
-            <span class="pagination-btn disabled">
-                <i class="fas fa-angle-left"></i>
-            </span>
-            {% endif %}
-
-            {% for num in page_obj.paginator.page_range %}
-            {% if page_obj.number == num %}
-            <span class="pagination-btn active">{{ num }}</span>
-            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} <a
-                href="?page={{ num }}{% for key,value in filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
-                class="pagination-btn">{{ num }}</a>
-                {% endif %}
-                {% endfor %}
-
-                {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}{% for key,value in filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
-                    class="pagination-btn" title="Next Page">
-                    <i class="fas fa-angle-right"></i>
-                </a>
-                <a href="?page={{ page_obj.paginator.num_pages }}{% for key,value in filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
-                    class="pagination-btn" title="Last Page">
-                    <i class="fas fa-angle-double-right"></i>
-                </a>
-                {% else %}
-                <span class="pagination-btn disabled">
-                    <i class="fas fa-angle-right"></i>
-                </span>
-                <span class="pagination-btn disabled">
-                    <i class="fas fa-angle-double-right"></i>
-                </span>
-                {% endif %}
-        </nav>
-    </div>
-    {% endif %}
 </div>
-{% endblock %}
+</div>
 
-{% block extra_js %}
+<!-- ===== ADD PERSON MODAL ===== -->
+<div class="modal fade" id="addPersonModal" tabindex="-1">
+</div>
+
+<!-- ===== ADD TRANSACTION MODAL ===== -->
+<div class="modal fade" id="addTransactionModal" tabindex="-1">
+</div>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // تنظیم عرض نوارهای پیشرفت
-        if (totalEmployees > 0) {
-            document.getElementById('paidProgress').style.width = ((paidCount / totalEmployees) * 100) + '%';
-            document.getElementById('partialProgress').style.width = ((partialCount / totalEmployees) * 100) + '%';
-            document.getElementById('unpaidProgress').style.width = ((unpaidCount / totalEmployees) * 100) + '%';
+// ============================================================
+// INLINE EDIT LOGIC WITH AUTO BALANCE & DELETE
+// ============================================================
+
+let editingRow = null;
+let originalValues = {};
+
+function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === 'csrftoken=') {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
         }
-        // جستجوی خودکار با تاخیر
-        let searchTimeout;
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.addEventListener('input', function () {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    document.getElementById('filterForm').submit();
-                }, 500);
+    }
+    return cookieValue;
+}
+const csrftoken = getCSRFToken();
+
+// ============================================================
+// DOUBLE-CLICK TO EDIT
+// ============================================================
+document.querySelectorAll('.editable-cell').forEach(function(cell) {
+    cell.addEventListener('dblclick', function(e) {
+        e.stopPropagation();
+        const row = this.closest('tr');
+        const rowId = row.dataset.id;
+        
+        if (!rowId) {
+            console.error('Row ID not found');
+            return;
+        }
+        
+        // If another row is being edited, save it first
+        if (editingRow && editingRow !== rowId) {
+            const prevRow = document.querySelector(`tr[data-id="${editingRow}"]`);
+            if (prevRow) {
+                saveRow(prevRow);
+            }
+        }
+        
+        // Start editing this row
+        if (!row.classList.contains('editing')) {
+            startEditing(row);
+        }
+        
+        // Edit this cell
+        if (!this.classList.contains('editing')) {
+            this.classList.add('editing');
+            const input = this.querySelector('.edit-input');
+            if (input) {
+                input.style.display = 'block';
+                input.focus();
+                input.select();
+            }
+        }
+    });
+});
+
+function startEditing(row) {
+    const rowId = row.dataset.id;
+    editingRow = rowId;
+    
+    row.classList.add('editing');
+    originalValues[rowId] = {};
+    
+    row.querySelectorAll('.editable-cell').forEach(function(cell) {
+        const field = cell.dataset.field;
+        const value = cell.querySelector('.cell-value').textContent.trim();
+        originalValues[rowId][field] = value;
+    });
+}
+
+// ============================================================
+// SAVE ROW
+// ============================================================
+function saveRow(row) {
+    const rowId = row.dataset.id;
+    const changes = {};
+    let hasChanges = false;
+    
+    row.querySelectorAll('.editable-cell.editing').forEach(function(cell) {
+        const field = cell.dataset.field;
+        const input = cell.querySelector('.edit-input');
+        if (!input) return;
+        
+        const newValue = input.value.trim();
+        const oldValue = originalValues[rowId] ? originalValues[rowId][field] || '' : '';
+        
+        if (newValue !== oldValue) {
+            changes[field] = newValue;
+            hasChanges = true;
+        }
+        
+        // Update display
+        const displayValue = newValue || '—';
+        cell.querySelector('.cell-value').textContent = displayValue;
+        cell.classList.remove('editing');
+        input.style.display = 'none';
+    });
+    
+    row.classList.remove('editing');
+    editingRow = null;
+    
+    if (hasChanges && Object.keys(changes).length > 0) {
+        console.log('Saving changes:', changes);
+        
+        fetch(`/employee/api/transaction/${rowId}/update/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(changes)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast('✅ Transaction updated successfully', 'success');
+                const balanceSpan = row.querySelector('.balance-value');
+                if (balanceSpan && data.person_balance !== undefined) {
+                    balanceSpan.textContent = 'AED' + data.person_balance.toFixed(0);
+                }
+                if (data.cash_in !== undefined) {
+                    const cashInCell = row.querySelector('.cash-in-value');
+                    if (cashInCell) cashInCell.textContent = data.cash_in.toFixed(0);
+                }
+                if (data.cash_out !== undefined) {
+                    const cashOutCell = row.querySelector('.cash-out-value');
+                    if (cashOutCell) cashOutCell.textContent = data.cash_out.toFixed(0);
+                }
+            } else {
+                showToast('❌ ' + data.error, 'error');
+                revertRow(row);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('❌ Network error', 'error');
+            revertRow(row);
+        });
+    }
+}
+
+function revertRow(row) {
+    const rowId = row.dataset.id;
+    if (!rowId) return;
+    
+    row.querySelectorAll('.editable-cell').forEach(function(cell) {
+        const field = cell.dataset.field;
+        const originalValue = originalValues[rowId] ? originalValues[rowId][field] || '—' : '—';
+        cell.querySelector('.cell-value').textContent = originalValue;
+        cell.classList.remove('editing');
+        const input = cell.querySelector('.edit-input');
+        if (input) input.style.display = 'none';
+    });
+    row.classList.remove('editing');
+    editingRow = null;
+}
+
+// ============================================================
+// DELETE TRANSACTION
+// ============================================================
+document.querySelectorAll('.delete-transaction').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const id = this.dataset.id;
+        const person = this.dataset.person;
+        
+        if (confirm(`Are you sure you want to delete this transaction for "${person}"?`)) {
+            fetch(`/employee/api/transaction/${id}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('✅ Transaction deleted successfully', 'success');
+                    const row = btn.closest('tr');
+                    row.remove();
+                    document.querySelectorAll('#peopleTableBody tr[data-id]').forEach(function(row, index) {
+                        row.querySelector('td:first-child').textContent = index + 1;
+                    });
+                } else {
+                    showToast('❌ ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('❌ Network error', 'error');
             });
         }
     });
+});
+
+// ============================================================
+// CANCEL EDIT ON ESCAPE
+// ============================================================
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && editingRow) {
+        const row = document.querySelector(`tr[data-id="${editingRow}"]`);
+        if (row) {
+            revertRow(row);
+            showToast('✖️ Editing cancelled', 'info');
+        }
+    }
+});
+
+// ============================================================
+// SAVE ALL BUTTON
+// ============================================================
+document.getElementById('saveAllBtn')?.addEventListener('click', function() {
+    const rows = document.querySelectorAll('.editable-cell.editing');
+    if (rows.length === 0) {
+        showToast('⚠️ No changes to save', 'warning');
+        return;
+    }
+    rows.forEach(function(cell) {
+        const row = cell.closest('tr');
+        if (row) saveRow(row);
+    });
+});
+
+// ============================================================
+// TOAST NOTIFICATION
+// ============================================================
+function showToast(message, type = 'success') {
+    const colors = {
+        success: '#28a745',
+        error: '#dc3545',
+        warning: '#ffc107',
+        info: '#17a2b8'
+    };
+    
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed; top: 20px; right: 20px; padding: 12px 24px;
+        background: ${colors[type]}; color: white; border-radius: 8px;
+        font-weight: 500; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// ============================================================
+// SEARCH FUNCTIONALITY
+// ============================================================
+document.getElementById('tableSearch')?.addEventListener('input', function() {
+    const search = this.value.toLowerCase();
+    document.querySelectorAll('#peopleTableBody tr[data-id]').forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(search) ? '' : 'none';
+    });
+});
+
+// ============================================================
+// EXPORT TO EXCEL
+// ============================================================
+function exportToExcel() {
+    alert('Export to Excel functionality - coming soon!');
+}
+
+function selectPersonType(type) {
+    document.getElementById('personType').value = type;
+    document.querySelectorAll('.person-type-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = 'white';
+        btn.style.color = 'inherit';
+    });
+    const activeBtn = document.querySelector(`.person-type-btn[data-type="${type}"]`);
+    activeBtn.classList.add('active');
+    activeBtn.style.background = '#1a237e';
+    activeBtn.style.color = 'white';
+}
+
+function calculateBalance() {
+    const cashIn = parseFloat(document.getElementById('transactionCashIn').value) || 0;
+    const cashOut = parseFloat(document.getElementById('transactionCashOut').value) || 0;
+    const balance = cashIn - cashOut;
+    const balanceField = document.getElementById('transactionBalance');
+    if (balanceField) {
+        balanceField.value = balance.toFixed(2);
+    }
+}
+
+// ============================================================
+// INIT ON DOM READY
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default date in modal
+    const today = new Date().toISOString().split('T')[0];
+    const dateInput = document.getElementById('transactionDate');
+    if (dateInput) {
+        dateInput.value = today;
+    }
+    
+    // Check if edit mode - open modal
+    if (window.location.search.includes('edit=')) {
+        const modal = new bootstrap.Modal(document.getElementById('addPersonModal'));
+        modal.show();
+    }
+});
 </script>
+
 {% endblock %}

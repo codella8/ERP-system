@@ -1,0 +1,143 @@
+<!-- templates/base.html -->
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Almuqbil | Inventory Management{% endblock %}</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <link rel="stylesheet" href="{% static 'css/reports_style.css' %}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="navbar-container">
+        <div class="navbar-brand">
+            <div class="brand-text">
+                ALMUQBIL
+            </div>
+        </div>
+
+        <button class="mobile-toggle" id="mobileToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Navigation Menu -->
+        <ul class="navbar-menu" id="navbarMenu">
+            <li>
+                <a href="{% url 'accounts:home' %}" class="{% if request.resolver_match.app_name == 'accounts' %}active{% endif %}">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'daily_sale:transaction_list' %}" class="{% if request.resolver_match.app_name == 'daily_sale' %}active{% endif %}">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Daily Sales</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'containers:list' %}" class="{% if request.resolver_match.app_name == 'containers' %}active{% endif %}">
+                    <i class="fas fa-ship"></i>
+                    <span>Containers</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'employee:person_list' %}" class="{% if request.resolver_match.app_name == 'employee' %}active{% endif %}">
+                    <i class="fas fa-users"></i>
+                    <span>People</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'reports:dashboard' %}" class="{% if request.resolver_match.app_name == 'reports' %}active{% endif %}">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>In-Out</span>
+                </a>
+            </li>
+        </ul>
+
+        <!-- User Profile -->
+        <div class="navbar-user">
+            <div class="user-avatar">
+                {{ user.username|slice:":1"|upper }}
+            </div>
+            <div class="user-info">
+                <div class="user-name">{{ user.get_full_name|default:user.username }}</div>
+                <div class="user-role">
+                    {% if user.is_superuser %}Admin{% else %}User{% endif %}
+                </div>
+            </div>
+            <a href="{% url 'accounts:logout' %}" class="logout-btn" title="Logout">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        </div>
+    </div>
+</nav>
+    <main class="main-content">
+
+        <!-- ===== MESSAGES ===== -->
+        {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' or message.tags == 'danger' %}fa-exclamation-circle{% elif message.tags == 'warning' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %}"></i>
+                {{ message }}
+                <button class="close-btn" onclick="this.parentElement.remove();">&times;</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+
+    </main>
+
+    <script>
+        // ===== Mobile Menu Toggle =====
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggle = document.getElementById('mobileToggle');
+            const menu = document.getElementById('navbarMenu');
+
+            if (toggle && menu) {
+                toggle.addEventListener('click', function() {
+                    menu.classList.toggle('open');
+                });
+
+                menu.querySelectorAll('a').forEach(function(link) {
+                    link.addEventListener('click', function() {
+                        if (window.innerWidth < 768) {
+                            menu.classList.remove('open');
+                        }
+                    });
+                });
+
+                document.addEventListener('click', function(e) {
+                    if (window.innerWidth < 768) {
+                        if (!menu.contains(e.target) && !toggle.contains(e.target)) {
+                            menu.classList.remove('open');
+                        }
+                    }
+                });
+            }
+
+            // ===== Auto-dismiss alerts after 5 seconds =====
+            document.querySelectorAll('.messages .alert').forEach(function(alert) {
+                setTimeout(function() {
+                    alert.style.opacity = '0';
+                    alert.style.transform = 'translateY(-10px)';
+                    alert.style.transition = 'all 0.3s ease';
+                    setTimeout(function() {
+                        alert.remove();
+                    }, 300);
+                }, 5000);
+            });
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

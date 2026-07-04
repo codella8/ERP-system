@@ -7,6 +7,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>{% block title %}Employee Management System{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
@@ -25,7 +28,72 @@
 </head>
 
 <body>
-    {% include 'employee/navbar.html' %}
+<nav class="navbar">
+    <div class="navbar-container">
+        <!-- Logo -->
+        <div class="navbar-brand">
+            <div class="brand-text">
+                ALMUQBIL
+                
+            </div>
+        </div>
+
+        <!-- Mobile Menu Toggle -->
+        <button class="mobile-toggle" id="mobileToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Navigation Menu -->
+        <ul class="navbar-menu" id="navbarMenu">
+            <li>
+                <a href="{% url 'accounts:home' %}" class="{% if request.resolver_match.app_name == 'accounts' %}active{% endif %}">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'daily_sale:transaction_list' %}" class="{% if request.resolver_match.app_name == 'daily_sale' %}active{% endif %}">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span>Daily Sales</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'containers:list' %}" class="{% if request.resolver_match.app_name == 'containers' %}active{% endif %}">
+                    <i class="fas fa-ship"></i>
+                    <span>Containers</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'employee:person_list' %}" class="{% if request.resolver_match.app_name == 'employee' %}active{% endif %}">
+                    <i class="fas fa-users"></i>
+                    <span>People</span>
+                </a>
+            </li>
+            <li>
+                <a href="{% url 'reports:dashboard' %}" class="{% if request.resolver_match.app_name == 'reports' %}active{% endif %}">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>In-Out</span>
+                </a>
+            </li>
+        </ul>
+
+        <!-- User Profile -->
+        <div class="navbar-user">
+            <div class="user-avatar">
+                {{ user.username|slice:":1"|upper }}
+            </div>
+            <div class="user-info">
+                <div class="user-name">{{ user.get_full_name|default:user.username }}</div>
+                <div class="user-role">
+                    {% if user.is_superuser %}Admin{% else %}User{% endif %}
+                </div>
+            </div>
+            <a href="{% url 'accounts:logout' %}" class="logout-btn" title="Logout">
+                <i class="fas fa-sign-out-alt"></i>
+            </a>
+        </div>
+    </div>
+</nav>
     <div class="main-content">
         <div class="container-fluid py-4">
             {% block content %}{% endblock %}

@@ -1,233 +1,120 @@
-# daily_sale/services.py
-from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+from decimal import Decimal, ROUND_HALF_UP
 import logging
-from django.db.models import Sum
+from django.db.models import Sum, Count, Q
 
 logger = logging.getLogger(__name__)
+
 
 class CalculationService:
     
     @staticmethod
-    def calculate_transaction_amounts(quantity, unit_price, discount, tax_percent, advance):
-        # تبدیل امن مقادیر به Decimal
-        try:
-            qty = Decimal(str(quantity)) if quantity not in [None, ''] else Decimal('1')
-        except:
-            qty = Decimal('1')
-            
-        try:
-            price = Decimal(str(unit_price)) if unit_price not in [None, ''] else Decimal('0')
-        except:
-            price = Decimal('0')
-            
-        try:
-            disc = Decimal(str(discount)) if discount not in [None, ''] else Decimal('0')
-        except:
-            disc = Decimal('0')
-            
-        try:
-            adv = Decimal(str(advance)) if advance not in [None, ''] else Decimal('0')
-        except:
-            adv = Decimal('0')
-        
-        # subtotal
-        subtotal = (qty * price).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-        # (net amount = subtotal - discount)
-        taxable_amount = (subtotal - disc).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        if taxable_amount < Decimal("0"):
-            taxable_amount = Decimal("0")
-
-        # ========== محاسبه مالیات - اگه tax خالی باشه، صفر ==========
-        if tax_percent in [None, '', 'null']:
-            tax_amount = Decimal('0')
-        else:
-            try:
-                tax_percent_decimal = Decimal(str(tax_percent))
-                tax_rate = tax_percent_decimal / Decimal("100")
-                tax_amount = (taxable_amount * tax_rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            except:
-                tax_amount = Decimal('0')
-
-        # محاسبه کل مبلغ
-        total_amount = (taxable_amount + tax_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-        # محاسبه مانده حساب
-        balance = (total_amount - adv).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        if balance < Decimal("0"):
-            balance = Decimal("0")
-
-        # تعیین وضعیت پرداخت
-        if balance <= Decimal("0") and total_amount > Decimal("0"):
+    def calculate_transaction_amounts(sales, discount, paid):
+        sales_amount = Decimal(str(sales)) if sales else Decimal('0')
+        discount_amount = Decimal(str(discount)) if discount else Decimal('0')
+        paid_amount = Decimal(str(paid)) if paid else Decimal('0')
+        total = (sales_amount - discount_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if total < 0:
+            total = Decimal('0')
+        balance = (total - paid_amount).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if balance < 0:
+            balance = Decimal('0')
+        if balance <= 0 and total > 0:
             payment_status = "paid"
-        elif adv > Decimal("0"):
+        elif paid_amount > 0:
             payment_status = "partial"
         else:
             payment_status = "unpaid"
-
+        
         return {
-            "subtotal": subtotal,
-            "taxable_amount": taxable_amount,
-            "tax_amount": tax_amount,
-            "total_amount": total_amount,
+            "total": total,
             "balance": balance,
             "payment_status": payment_status,
         }
+    
     @staticmethod
-    def calculate_item_amounts(quantity, unit_price, discount, tax_percent):
-        """
-        محاسبه مقادیر آیتم (بدون advance)
-        """
-        # تبدیل امن مقادیر به Decimal
-        try:
-            qty = Decimal(str(quantity)) if quantity not in [None, ''] else Decimal('1')
-        except (InvalidOperation, TypeError):
-            qty = Decimal('1')
-            
-        try:
-            price = Decimal(str(unit_price)) if unit_price not in [None, ''] else Decimal('0')
-        except (InvalidOperation, TypeError):
-            price = Decimal('0')
-            
-        try:
-            disc = Decimal(str(discount)) if discount not in [None, ''] else Decimal('0')
-        except (InvalidOperation, TypeError):
-            disc = Decimal('0')
-        
-        subtotal = (qty * price).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
-
-        taxable = (subtotal - disc).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
-        if taxable < Decimal("0"):
-            taxable = Decimal("0")
-
-        # ========== محاسبه مالیات - اگر tax خالی باشه، صفر در نظر گرفته میشه ==========
-        if tax_percent in [None, '', '0', '0.0', 0]:
-            tax_amount = Decimal('0')
-        else:
-            try:
-                tax_percent_decimal = Decimal(str(tax_percent))
-                tax_rate = tax_percent_decimal / Decimal("100")
-                tax_amount = (taxable * tax_rate).quantize(
-                    Decimal("0.01"), rounding=ROUND_HALF_UP
-                )
-            except (InvalidOperation, TypeError, ZeroDivisionError):
-                tax_amount = Decimal('0')
-
-        total_amount = (taxable + tax_amount).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
-
-        return {
-            "subtotal": subtotal,
-            "taxable": taxable,
-            "tax_amount": tax_amount,
-            "total_amount": total_amount,
-        }
-
-    @staticmethod
-    def calculate_transaction_from_items(items_data, tax_percent, advance):
-        subtotal = Decimal("0")
-        discount_total = Decimal("0")
-        tax_amount_total = Decimal("0")
-
-        for item in items_data:
-            item_calc = CalculationService.calculate_item_amounts(
-                quantity=item.get("quantity", 1),
-                unit_price=item.get("unit_price", 0),
-                discount=item.get("discount", 0),
-                tax_percent=tax_percent
-            )
-            subtotal += item_calc["subtotal"]
-            discount_total += Decimal(str(item.get("discount", 0)))
-            tax_amount_total += item_calc["tax_amount"]
-
-        net_amount = max(subtotal - discount_total, Decimal("0"))
-        total_amount = (net_amount + tax_amount_total).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
-
-        try:
-            adv = Decimal(str(advance)) if advance not in [None, ''] else Decimal('0')
-        except (InvalidOperation, TypeError):
-            adv = Decimal('0')
-
-        balance = max(total_amount - adv, Decimal("0"))
-        
-        if balance <= Decimal("0") and total_amount > Decimal("0"):
-            payment_status = "paid"
-        elif adv > Decimal("0"):
-            payment_status = "partial"
-        else:
-            payment_status = "unpaid"
-
-        return {
-            "subtotal": subtotal,
-            "discount_total": discount_total,
-            "tax_amount": tax_amount_total,
-            "total_amount": total_amount,
-            "balance": balance,
-            "payment_status": payment_status,
-        }
+    def validate_transaction_data(sales, discount, paid):
+        if sales < 0:
+            return False, "Sales cannot be negative"
+        if discount < 0:
+            return False, "Discount cannot be negative"
+        if discount > sales:
+            return False, "Discount cannot be greater than Sales"
+        if paid < 0:
+            return False, "Paid cannot be negative"
+        return True, "OK"
 
 
 class SummaryService:
     
     @staticmethod
     def get_transaction_stats(queryset):
+        total_sales = queryset.aggregate(total=Sum('sales'))['total'] or Decimal('0')
+        total_discount = queryset.aggregate(total=Sum('discount'))['total'] or Decimal('0')
+        total_paid = queryset.aggregate(total=Sum('paid'))['total'] or Decimal('0')
+        total_qty = queryset.aggregate(total=Sum('qty'))['total'] or 0
+        transaction_count = queryset.count()
         
-        # ================ محاسبه مجموع فروش ================
-        sales_total = queryset.filter(transaction_type='sale').aggregate(
-            total=Sum('total_amount')
-        )['total'] or Decimal('0')
+        net_total = total_sales - total_discount
+        if net_total < 0:
+            net_total = Decimal('0')
         
-        # ================ محاسبه مجموع خرید ================
-        purchases_total = queryset.filter(transaction_type='purchase').aggregate(
-            total=Sum('total_amount')
-        )['total'] or Decimal('0')
-        
-        # ================ محاسبه معوقات ================
-        outstanding_qs = queryset.filter(balance__gt=0)
-        outstanding_total = outstanding_qs.aggregate(
-            total=Sum('balance')
-        )['total'] or Decimal('0')
-        outstanding_count = outstanding_qs.count()
-        
-        # ================ محاسبه تعداد کالاهای فروخته شده ================
-        items_sold = 0
-        for transaction in queryset.filter(transaction_type='sale'):
-            if hasattr(transaction, 'items') and transaction.items.exists():
-                items_sold += sum(item.quantity for item in transaction.items.all())
-            else:
-                items_sold += transaction.quantity
-        
-        # ================ محاسبه میانگین تراکنش ================
-        total_count = queryset.count()
         avg_transaction = Decimal('0')
-        if total_count > 0:
-            total_amount_sum = queryset.aggregate(
-                total=Sum('total_amount')
-            )['total'] or Decimal('0')
-            avg_transaction = total_amount_sum / total_count
-        
-        logger.info("=" * 50)
-        logger.info("📊 SummaryService.get_transaction_stats:")
-        logger.info(f"   - Total Sales: {sales_total:,.2f} AED")
-        logger.info(f"   - Total Purchases: {purchases_total:,.2f} AED")
-        logger.info(f"   - Outstanding Balance: {outstanding_total:,.2f} AED")
-        logger.info(f"   - Outstanding Count: {outstanding_count}")
-        logger.info(f"   - Items Sold: {items_sold}")
-        logger.info(f"   - Avg Transaction: {avg_transaction:,.2f} AED")
-        logger.info("=" * 50)
+        if transaction_count > 0:
+            avg_transaction = (net_total / transaction_count).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         
         return {
-            'total_sales': sales_total,
-            'total_purchases': purchases_total,
-            'total_outstanding': outstanding_total,
-            'outstanding_count': outstanding_count,
-            'items_sold': items_sold,
+            'total_sales': total_sales,
+            'total_discount': total_discount,
+            'net_total': net_total,
+            'total_paid': total_paid,
+            'total_qty': total_qty,
+            'transaction_count': transaction_count,
             'avg_transaction': avg_transaction,
         }
+    
+    @staticmethod
+    def get_daily_summary(queryset, date):
+        day_transactions = queryset.filter(date=date)
+        
+        sales_sum = day_transactions.aggregate(
+            total_sales=Sum('sales'),
+            total_discount=Sum('discount'),
+            total_paid=Sum('paid'),
+            total_qty=Sum('qty'),
+            transaction_count=Count('id')
+        )
+        
+        total_sales = sales_sum['total_sales'] or Decimal('0')
+        total_discount = sales_sum['total_discount'] or Decimal('0')
+        net_total = total_sales - total_discount
+        if net_total < 0:
+            net_total = Decimal('0')
+        
+        return {
+            'date': date,
+            'total_sales': total_sales,
+            'total_discount': total_discount,
+            'net_total': net_total,
+            'total_paid': sales_sum['total_paid'] or Decimal('0'),
+            'total_qty': sales_sum['total_qty'] or 0,
+            'transaction_count': sales_sum['transaction_count'] or 0,
+            'transactions': day_transactions.order_by('-created_at'),
+        }
+    
+    @staticmethod
+    def get_code_summary(queryset, date=None):
+        qs = queryset
+        if date:
+            qs = qs.filter(date=date)
+        
+        summary = qs.values('code').annotate(
+            total_sales=Sum('sales'),
+            total_qty=Sum('qty'),
+            transaction_count=Count('id'),
+            not_sold=Count('id', filter=Q(sales=0) | Q(qty=0))
+        ).order_by('code')
+        
+        for item in summary:
+            item['net_total'] = item['total_sales'] or Decimal('0')
+        
+        return summary 

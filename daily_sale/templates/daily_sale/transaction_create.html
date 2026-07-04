@@ -1,347 +1,280 @@
 {% extends "daily_sale/daily_sale_base.html" %}
 {% load static %}
-{% block title %}Almuqbil | Excel Transaction{% endblock %}
+
+{% block title %}Almuqbil | New Sale Transaction{% endblock %}
 
 {% block content %}
-<div class="transaction-wrapper">
-    <div class="excel-container">
-        <!-- منو -->
-        <div class="excel-menu">
-            <a href="{% url 'daily_sale:transaction_list' %}" class="menu-item">
-                <i class="fas fa-list"></i> All Transactions
-            </a>
-            <a href="{% url 'daily_sale:daily_summary' %}" class="menu-item">
-                <i class="fas fa-chart-bar"></i> Daily Summary
-            </a>
-            <a href="{% url 'daily_sale:cleared_transactions' %}" class="menu-item">
-                <i class="fas fa-check-double"></i> Cleared Bills
-            </a>
-        </div>
-
-        <!-- نوار ابزار -->
-        <div class="excel-toolbar">
-            <span style="flex:1"></span>
-            <span>📅 {% now "F j, Y" %}</span>
-        </div>
-
-        <!-- باکس محاسبات -->
-        <div class="calculations-top">
-            <div class="calc-items">
-                <div class="calc-item"><span class="calc-label">Subtotal:</span><span class="calc-value"
-                        id="preview-subtotal">0.00 AED</span></div>
-                <div class="calc-item"><span class="calc-label">Discount:</span><span class="calc-value"
-                        id="preview-discount">0.00 AED</span></div>
-                <div class="calc-item"><span class="calc-label">Tax (<span id="tax-rate-display">5</span>%):</span><span
-                        class="calc-value" id="preview-tax">0.00 AED</span></div>
-                <div class="calc-item"><span class="calc-label">Total:</span><span class="calc-value"
-                        id="preview-total">0.00 AED</span></div>
-                <div class="calc-item"><span class="calc-label">Advance:</span><span class="calc-value"
-                        id="preview-advance">0.00 AED</span></div>
-                <div class="calc-item"><span class="calc-label">Balance:</span><span class="calc-value"
-                        id="preview-balance">0.00 AED</span></div>
-            </div>
-            <div class="payment-status">
-                <span class="status-label">Status:</span>
-                <span id="payment-status" class="status-badge status-unpaid">UNPAID</span>
-            </div>
-        </div>
-
-        <!-- فرم اصلی - همه فیلدها داخل فرم -->
-        <form method="post" id="tx-form" novalidate>
-            {% csrf_token %}
-            <input type="hidden" name="subtotal" id="id_subtotal_hidden" value="0">
-            <input type="hidden" name="tax_amount" id="id_tax_amount_hidden" value="0">
-            <input type="hidden" name="total_amount" id="id_total_amount_hidden" value="0">
-            <input type="hidden" name="balance" id="id_balance_hidden" value="0">
-            <input type="hidden" name="items_data" id="id_items_data">
-
-            <!-- ردیف فیلدها - داخل فرم -->
-            <div class="horizontal-row">
-                <div class="field-group"><label>📅 Date</label><input type="date" id="id_date" name="date"
-                        value="{% now 'Y-m-d' %}" required></div>
-                <div class="field-group"><label># Invoice</label><input type="text" id="id_invoice_number"
-                        name="invoice_number" placeholder="Auto"></div>
-                <div class="field-group"><label>Code</label><input type="text" id="id_code" name="code"
-                        placeholder="Code">
-                </div>
-                <div class="field-group" style="flex:2;"><label>Item Description</label><input type="text"
-                        id="id_description" name="description" placeholder="Description"></div>
-                <div class="field-group" style="min-width:200px;">
-                    <label>👤 Customer</label>
-                    <input type="text" id="id_customer_name" name="customer_name" placeholder="Enter customer name"
-                        value="{{ request.POST.customer_name|default:'' }}">
-                </div>
-                <div class="field-group"><label>% Tax</label><input type="number" id="id_tax" name="tax" value="5.00"
-                        step="0.01" min="0" max="100"></div>
-                <div class="field-group"><label>💰 Advance</label><input type="number" id="id_advance" name="advance"
-                        value="0.00" step="0.01" min="0"><span>AED</span></div>
-                <div class="field-group"><label>💰 Paid</label><input type="number" id="id_paid" name="paid"
-                        value="0.00" step="0.01" min="0" required><span>AED</span></div>
-            </div>
-
-            <!-- دکمه Add Item -->
-            <button type="button" id="add-item-btn" class="btn-add-items"><i class="bi bi-plus-circle"></i> Add
-                Item</button>
-
-            <!-- جدول آیتم‌ها -->
-            <div class="table-container">
-                <table class="items-table">
-                    <thead>
-                        <tr>
-                            <th>ITEM</th>
-                            <th>QTY</th>
-                            <th>PRICE</th>
-                            <th>DISCOUNT</th>
-                            <th>SUBTOTAL</th>
-                            <th>CONTAINER</th>
-                            <th>ACTION</th>
-                        </tr>
-                    </thead>
-                    <tbody id="items-list">
-                        <tr data-item-index="0">
-                            <td><select class="form-select item-select" name="item_0" required></select></td>
-                            <td><input type="number" class="form-control qty" name="qty_0" value="1" min="1" step="1"
-                                    required></td>
-                            <td><input type="number" class="form-control unit-price" name="price_0" value="0" min="0"
-                                    step="0.01" required></td>
-                            <td><input type="number" class="form-control discount" name="discount_0" value="0" min="0"
-                                    step="0.01"></td>
-                            <td><span class="row-subtotal fw-bold text-success">0.00 AED</span><input type="hidden"
-                                    class="row-subtotal-hidden" name="subtotal_0" value="0"></td>
-                            <td><input type="text" class="form-control container" name="container_0"
-                                    placeholder="Container"></td>
-                            <td class="text-center"><button type="button" class="btn-remove" disabled><i
-                                        class="bi bi-trash"></i></button></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- یادداشت -->
-            <div class="notes-section">
-                <textarea class="form-control" id="id_note" name="note" rows="2"
-                    placeholder="Notes about this transaction..."></textarea>
-            </div>
-
-            <!-- دکمه‌ها -->
-            <div class="form-actions">
-                <a href="{% url 'daily_sale:transaction_list' %}" class="btn-cancel">Cancel</a>
-                <button type="submit" form="tx-form" class="btn-save">Save Transaction</button>
-            </div>
-        </form>
-
-        <!-- وضعیت پایین صفحه -->
-        <div class="status-bar">
-            <span>Ready</span>
-            <span>Items: <span id="item-count">1</span></span>
-            <span>Benjamin Sesko: 'Pres...</span>
-        </div>
-    </div>
+<div class="excel-menu">
+    <a href="{% url 'daily_sale:transaction_create' %}" class="menu-item active">
+        <i class="fas fa-plus-circle"></i> New Transaction
+    </a>
+    <a href="{% url 'daily_sale:daily_summary' %}" class="menu-item">
+        <i class="fas fa-chart-bar"></i> Daily Summary
+    </a>
+    <a href="{% url 'daily_sale:transaction_list' %}" class="menu-item">
+        <i class="fas fa-list"></i> Transaction List
+    </a>
 </div>
 
-<!-- Toast -->
-<div id="successToast" class="toast position-fixed top-0 end-0 m-3" style="display:none;">
-    <div class="toast-header bg-success text-white"><strong>Notification</strong></div>
-    <div class="toast-body"></div>
+<div class="form-container">
+    <h3>New Sale Transaction</h3>
+    <hr>
+
+    <form method="post" id="tx-form" novalidate>
+        {% csrf_token %}
+        <div class="form-row">
+            <div class="field-group">
+                <label>Date</label>
+                <input type="date" id="id_date" name="date" value="{% now 'Y-m-d' %}" required>
+            </div>
+
+            <div class="field-group">
+                <label>Customer Name</label>
+                <input type="text" id="id_customer_name" name="customer_name" placeholder="Enter customer name" required>
+            </div>
+
+            <div class="field-group">
+                <label>Invoice #</label>
+                <input type="text" id="id_invoice_number" name="invoice_number" placeholder="Auto or manual">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="field-group">
+                <label>Select Item</label>
+                <select id="id_item" name="item_id" class="select2" style="width: 100%;">
+                    <option value="">-- Select an item --</option>
+                    {% for item in items %}
+                    <option value="{{ item.id }}" 
+                            data-price="{{ item.unit_price|default:'0' }}" 
+                            data-code="{{ item.code|default:'' }}" 
+                            data-name="{{ item.product_name }}" 
+                            data-stock="{{ item.in_stock_qty|default:'0' }}"
+                            data-sold="{{ item.total_sold_qty|default:'0' }}"
+                            data-current-stock="{{ item.current_stock|default:'0' }}"
+                            data-container="{{ item.container.container_no|default:'' }}" 
+                            data-container-id="{{ item.container.id|default:'' }}">
+                        {{ item.code|default:'' }} - {{ item.product_name }} (Stock: {{ item.current_stock|default:0 }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <span class="stock-info" id="stock-info"></span>
+            </div>
+
+            <div class="field-group">
+                <label>Container</label>
+                <input type="text" id="id_container_display" name="container_display" readonly placeholder="Container number">
+                <input type="hidden" id="id_container_id" name="container_id">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="field-group">
+                <label>Code</label>
+                <input type="text" id="id_code" name="code" placeholder="Item code" readonly>
+            </div>
+
+            <div class="field-group">
+                <label>Description</label>
+                <input type="text" id="id_description" name="description" placeholder="Item description" readonly>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="field-group">
+                <label>QTY</label>
+                <input type="number" id="id_qty" name="qty" value="1" min="1" step="1" required>
+                <span class="help-text">Max: <span id="max-stock-display">0</span></span>
+            </div>
+
+            <div class="field-group">
+                <label>Unit Price (AED)</label>
+                <input type="number" id="id_unit_price" name="unit_price" value="0" min="0" step="0.01" required>
+                <span class="help-text">✓ قابل ویرایش دستی</span>
+            </div>
+
+            <div class="field-group">
+                <label>Sales (QTY × Price)</label>
+                <input type="number" id="id_sales" name="sales" value="0" step="0.01" readonly>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="field-group">
+                <label>Paid (AED)</label>
+                <input type="number" id="id_paid" name="paid" value="0" step="0.01" min="0" required>
+            </div>
+
+            <div class="field-group">
+                <label>Discount (AED)</label>
+                <input type="number" id="id_discount" name="discount" value="0" min="0" step="0.01">
+            </div>
+
+            <div class="field-group">
+                <label>Total</label>
+                <input type="text" id="id_total" name="total" readonly style="background:#f0f0f0; font-weight:bold;">
+            </div>
+        </div>
+
+        <div class="summary-panel">
+            <div class="summary-item"><strong>Sales:</strong> <span id="summary-sales">0.00</span> AED</div>
+            <div class="summary-item"><strong>Discount:</strong> <span id="summary-discount">0.00</span> AED</div>
+            <div class="summary-item"><strong>Total:</strong> <span id="summary-total">0.00</span> AED</div>
+            <div class="summary-item"><strong>Paid:</strong> <span id="summary-paid">0.00</span> AED</div>
+            <div class="summary-item"><strong>Balance:</strong> <span id="summary-balance">0.00</span> AED</div>
+            <div class="summary-item"><strong>Status:</strong> <span id="payment-status-badge" class="status-badge status-unpaid">UNPAID</span></div>
+        </div>
+
+        <div class="form-actions">
+            <a href="{% url 'daily_sale:transaction_list' %}" class="btn-cancel">Cancel</a>
+            <button type="submit" class="btn-save">Save Transaction</button>
+        </div>
+    </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    $(document).ready(function () {
-        const urls = {
-            containers: "{% url 'daily_sale:ajax_search_containers' %}",
-            items: "{% url 'daily_sale:ajax_search_items' %}",
-            itemAutofill: "{% url 'daily_sale:ajax_item_autofill' %}",
-        };
+    document.addEventListener('DOMContentLoaded', function () {
+        const qtyInput = document.getElementById('id_qty');
+        const priceInput = document.getElementById('id_unit_price');
+        const salesInput = document.getElementById('id_sales');
+        const discountInput = document.getElementById('id_discount');
+        const paidInput = document.getElementById('id_paid');
+        const totalInput = document.getElementById('id_total');
+        const summarySales = document.getElementById('summary-sales');
+        const summaryDiscount = document.getElementById('summary-discount');
+        const summaryTotal = document.getElementById('summary-total');
+        const summaryPaid = document.getElementById('summary-paid');
+        const summaryBalance = document.getElementById('summary-balance');
+        const statusBadge = document.getElementById('payment-status-badge');
+        const stockInfo = document.getElementById('stock-info');
+        const maxStockDisplay = document.getElementById('max-stock-display');
 
-        let itemCounter = 0;
+        const itemSelect = document.getElementById('id_item');
+        const codeInput = document.getElementById('id_code');
+        const descInput = document.getElementById('id_description');
+        const containerDisplay = document.getElementById('id_container_display');
+        const containerId = document.getElementById('id_container_id');
 
-        function setupSelect2(selector, url, placeholder) {
-            $(selector).select2({
-                theme: 'bootstrap-5',
-                placeholder: placeholder,
-                allowClear: true,
-                width: '100%',
-                ajax: {
-                    url: url,
-                    dataType: 'json',
-                    delay: 250,
-                    data: function (params) {
-                        return { q: params.term || '' };
-                    },
-                    processResults: function (data) {
-                        return { results: data.results || [] };
-                    }
+        let currentStock = 0;
+
+        function updateStockInfo() {
+            const selected = itemSelect.options[itemSelect.selectedIndex];
+            if (selected && selected.value) {
+                currentStock = parseFloat(selected.dataset.currentStock) || 0;
+                const qty = parseFloat(qtyInput.value) || 0;
+                maxStockDisplay.textContent = currentStock;
+                
+                if (qty > currentStock && currentStock > 0) {
+                    stockInfo.innerHTML = ' Warning: Only ' + currentStock + ' items in stock!';
+                    stockInfo.className = 'stock-info warning';
+                    qtyInput.style.borderColor = '#dc3545';
+                } else {
+                    stockInfo.innerHTML = 'Available stock: ' + currentStock;
+                    stockInfo.className = 'stock-info success';
+                    qtyInput.style.borderColor = '#ccc';
                 }
-            });
+            } else {
+                stockInfo.innerHTML = '';
+                stockInfo.className = 'stock-info';
+                maxStockDisplay.textContent = '0';
+            }
         }
 
-        setTimeout(() => {
-            setupSelect2('#id_container', urls.containers, 'Search Container...');
-            setupSelect2('[name="item_0"]', urls.items, 'Select Item');
-            $('[name="item_0"]').on('change', function () { loadItemDetails($(this)); });
-        }, 300);
-
-        function loadItemDetails(selectElement) {
-            const itemId = selectElement.val();
-            const row = selectElement.closest('tr');
-
-            if (!itemId || itemId === "") {
-                row.find('.unit-price').val(0);
-                row.find('.container').val('');
-                calculate();
-                return;
-            }
-
-            $.get(urls.itemAutofill, { item_id: itemId }, function (response) {
-                if (response && response.success) {
-                    const unitPrice = parseFloat(response.unit_price || 0);
-                    row.find('.unit-price').val(unitPrice.toFixed(2));
-
-                    // ✅ نمایش شماره کانتینر
-                    if (response.container_number) {
-                        row.find('.container').val(response.container_number);
-                    }
-
-                    showToast('Item loaded', 'success');
-                }
-                calculate();
-            }).fail(function () {
-                calculate();
-            });
-        }
-
-        $('#add-item-btn').click(function () {
-            itemCounter++;
-            const newRow = `
-            <tr data-item-index="${itemCounter}">
-                <td><select class="form-select item-select" name="item_${itemCounter}" required></select></td>
-                <td><input type="number" class="form-control qty" name="qty_${itemCounter}" value="1" min="1" step="1" required></td>
-                <td><input type="number" class="form-control unit-price" name="price_${itemCounter}" value="0" min="0" step="0.01" required></td>
-                <td><input type="number" class="form-control discount" name="discount_${itemCounter}" value="0" min="0" step="0.01"></td>
-                <td><span class="row-subtotal fw-bold text-success">0.00 AED</span><input type="hidden" class="row-subtotal-hidden" name="subtotal_${itemCounter}" value="0"></td>
-                <td><input type="text" class="form-control container" name="container_${itemCounter}" placeholder="Container"></td>
-                <td class="text-center"><button type="button" class="btn-remove"><i class="bi bi-trash"></i></button></td>
-            </tr>`;
-            $('#items-list').append(newRow);
-            setupSelect2(`[name="item_${itemCounter}"]`, urls.items, 'Select Item');
-            $(`[name="item_${itemCounter}"]`).on('change', function () { loadItemDetails($(this)); });
-            $('.btn-remove').prop('disabled', false);
-            calculate();
-        });
-
-        $(document).on('click', '.btn-remove', function () {
-            if ($('#items-list tr').length === 1) {
-                showToast('Cannot remove the only item', 'warning');
-                return;
-            }
-            $(this).closest('tr').remove();
-            calculate();
-        });
-
-        function calculate() {
-            let subtotal = 0, discountTotal = 0;
-            $('#items-list tr').each(function () {
-                const qty = parseFloat($(this).find('.qty').val()) || 0;
-                const price = parseFloat($(this).find('.unit-price').val()) || 0;
-                const discount = parseFloat($(this).find('.discount').val()) || 0;
-                const rowSubtotal = qty * price;
-                subtotal += rowSubtotal;
-                discountTotal += discount;
-                $(this).find('.row-subtotal').text(rowSubtotal.toFixed(2) + ' AED');
-            });
-
-            const taxRate = parseFloat($('#id_tax').val()) || 0;
-            const netAmount = Math.max(subtotal - discountTotal, 0);
-            const tax = (netAmount * taxRate) / 100;
-            const total = netAmount + tax;
-            const advance = parseFloat($('#id_advance').val()) || 0;
-            const balance = Math.max(total - advance, 0);
-
-            $('#preview-subtotal').text(subtotal.toFixed(2) + ' AED');
-            $('#preview-discount').text(discountTotal.toFixed(2) + ' AED');
-            $('#preview-tax').text(tax.toFixed(2) + ' AED');
-            $('#preview-total').text(total.toFixed(2) + ' AED');
-            $('#preview-advance').text(advance.toFixed(2) + ' AED');
-            $('#preview-balance').text(balance.toFixed(2) + ' AED');
-
-            $('#id_subtotal_hidden').val(subtotal.toFixed(2));
-            $('#id_tax_amount_hidden').val(tax.toFixed(2));
-            $('#id_total_amount_hidden').val(total.toFixed(2));
-            $('#id_balance_hidden').val(balance.toFixed(2));
-
-            let status = 'UNPAID', statusClass = 'status-unpaid';
-            if (advance >= total && total > 0) { status = 'PAID'; statusClass = 'status-paid'; }
-            else if (advance > 0) { status = 'PARTIAL'; statusClass = 'status-partial'; }
-            $('#payment-status').removeClass().addClass('status-badge ' + statusClass).text(status);
-            $('#item-count').text($('#items-list tr').length);
-        }
-
-        $(document).on('input', '.qty, .unit-price, .discount', calculate);
-        $('#id_tax, #id_advance').on('input', calculate);
-
-        $('#tx-form').on('submit', function (e) {
-            e.preventDefault();
-
-            // validation
-            if (!$('#id_date').val()) {
-                showToast('Date is required', 'warning');
-                return;
-            }
-
-            if (!$('#id_paid').val() && $('#id_paid').val() !== '0') {
-                showToast('Paid amount is required', 'warning');
-                return;
-            }
-
-            const items = [];
-            let hasValidItem = false;
-
-            $('#items-list tr').each(function () {
-                const itemId = $(this).find('.item-select').val();
-                const qty = $(this).find('.qty').val();
-                const price = $(this).find('.unit-price').val();
-                const discount = $(this).find('.discount').val();
-                const container = $(this).find('.container').val();
-
-                if (!itemId) {
-                    showToast('Please select an item', 'warning');
-                    return false;
-                }
-                items.push({
-                    item_id: itemId,
-                    quantity: parseFloat(qty),
-                    unit_price: parseFloat(price),
-                    discount: parseFloat(discount) || 0,
-                    container: container
+        itemSelect.addEventListener('change', function () {
+            const selected = this.options[this.selectedIndex];
+            if (selected && selected.value) {
+                codeInput.value = selected.dataset.code || '';
+                descInput.value = selected.dataset.name || '';
+                priceInput.value = selected.dataset.price || 0;
+                containerDisplay.value = selected.dataset.container || '';
+                containerId.value = selected.dataset.containerId || '';
+                currentStock = parseFloat(selected.dataset.currentStock) || 0;
+                maxStockDisplay.textContent = currentStock;
+                
+                console.log('Item loaded:', {
+                    name: selected.dataset.name,
+                    price: selected.dataset.price,
+                    stock: currentStock,
+                    container: selected.dataset.container
                 });
-                hasValidItem = true;
-            });
-
-            if (!hasValidItem) {
-                showToast('Please add at least one item', 'warning');
-                return;
+                
+                updateStockInfo();
+                calculateSales();
+            } else {
+                codeInput.value = '';
+                descInput.value = '';
+                priceInput.value = 0;
+                containerDisplay.value = '';
+                containerId.value = '';
+                currentStock = 0;
+                maxStockDisplay.textContent = '0';
+                stockInfo.innerHTML = '';
+                calculateSales();
             }
-
-            $('#id_items_data').val(JSON.stringify(items));
-
-            // اطمینان از اینکه همه فیلدهای required پر شدن
-            if (!$('#id_date').val() || !$('#id_paid').val()) {
-                return;
-            }
-
-            this.submit();
         });
 
-        function showToast(message, type) {
-            const toast = $('#successToast');
-            toast.find('.toast-header').removeClass().addClass('toast-header bg-' + (type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'danger') + ' text-white');
-            toast.find('.toast-body').text(message);
-            toast.fadeIn(300).delay(2000).fadeOut(300);
+        function calculateSales() {
+            const qty = parseFloat(qtyInput.value) || 0;
+            const price = parseFloat(priceInput.value) || 0;
+            const sales = qty * price;
+            salesInput.value = sales.toFixed(2);
+            updateStockInfo();
+            calculateTotal();
         }
 
-        setTimeout(calculate, 500);
+        function calculateTotal() {
+            const sales = parseFloat(salesInput.value) || 0;
+            const discount = parseFloat(discountInput.value) || 0;
+            const paid = parseFloat(paidInput.value) || 0;
+
+            let total = sales - discount;
+            if (total < 0) total = 0;
+            let balance = total - paid;
+            if (balance < 0) balance = 0;
+
+            totalInput.value = total.toFixed(2) + ' AED';
+            summarySales.innerText = sales.toFixed(2);
+            summaryDiscount.innerText = discount.toFixed(2);
+            summaryTotal.innerText = total.toFixed(2);
+            summaryPaid.innerText = paid.toFixed(2);
+            summaryBalance.innerText = balance.toFixed(2);
+
+            let status = 'UNPAID';
+            let statusClass = 'status-unpaid';
+            if (balance <= 0 && total > 0) {
+                status = 'PAID';
+                statusClass = 'status-paid';
+            } else if (paid > 0) {
+                status = 'PARTIAL';
+                statusClass = 'status-partial';
+            }
+            statusBadge.innerText = status;
+            statusBadge.className = 'status-badge ' + statusClass;
+        }
+
+        qtyInput.addEventListener('input', calculateSales);
+        priceInput.addEventListener('input', calculateSales);
+        discountInput.addEventListener('input', calculateTotal);
+        paidInput.addEventListener('input', calculateTotal);
+
+        qtyInput.addEventListener('change', function() {
+            const qty = parseFloat(this.value) || 0;
+            if (qty > currentStock && currentStock > 0) {
+                alert('Not enough stock! Maximum available: ' + currentStock);
+                this.value = currentStock;
+                calculateSales();
+            }
+        });
+
+        const invoiceInput = document.getElementById('id_invoice_number');
+        if (!invoiceInput.value) {
+            const d = new Date();
+            invoiceInput.value = d.getFullYear() + '' + (d.getMonth() + 1).toString().padStart(2, '0') + '' + d.getDate().toString().padStart(2, '0') + '-' + Math.floor(Math.random() * 10000);
+        }
+
+        calculateSales();
     });
 </script>
 {% endblock %}
