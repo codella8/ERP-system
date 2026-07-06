@@ -10,12 +10,12 @@
         <!-- Excel Menu -->
         <div class="excel-menu">
             <a href="{% url 'containers:list' %}" class="menu-item">
-                <i class="fas fa-ship"></i> Containers
+                <i class="fas fa-truck"></i> Containers
             </a>
             <a href="{% url 'containers:inventory_list' %}" class="menu-item">
                 <i class="fas fa-chart-bar"></i> Inventory
             </a>
-            <a href="#" class="menu-item">
+            <a href="{% url 'containers:payment' %}" class="menu-item">
                 <i class="fas fa-credit-card"></i> Payment
             </a>
             <a href="{% url 'containers:expense_list' %}" class="menu-item">
@@ -71,10 +71,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <button class="toolbar-btn" id="applyFilter">Apply Filters</button>
-            {% if search or container_filter %}
-            <a href="{% url 'containers:inventory_list' %}" class="toolbar-btn">Clear All</a>
-            {% endif %}
+            <button class="toolbar-btn" id="applyFilter">Enter</button>
         </div>
 
         <!-- Summary Cards -->
@@ -175,8 +172,8 @@
                             </td>
                             <td>
                                 {% if item.container %}
-                                <a href="{% url 'containers:detail' item.container.id %}" style="color: #217346; text-decoration: none;">
-                                    <i class="fas fa-ship"></i> {{ item.container.container_no }}
+                                <a href="{% url 'containers:detail' item.container.id %}" style="color: #08110c; text-decoration: none;">
+                                    {{ item.container.container_no }}
                                 </a>
                                 {% else %}
                                 <span class="text-muted">—</span>

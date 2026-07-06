@@ -1,4 +1,3 @@
-
 :root {
     --primary: #4f46e5;
     --primary-light: #6366f1;
@@ -820,7 +819,7 @@
 
 /* ===== HEADER ===== */
 .cd-header {
-    background: linear-gradient(135deg, #1a3d2f 0%, #0f2a1f 100%);
+    background: linear-gradient(135deg, #1c128a 0%, #132794 100%);
     padding: 24px 32px;
     color: white;
 }
@@ -1145,10 +1144,114 @@
     transition: all 0.3s ease;
 }
 
+/* ============================================================
+   HEADER - آبی تیره با چیدمان منظم
+   ============================================================ */
 .premium-header {
-    background: linear-gradient(135deg, #1a3d2f 0%, #0f2a1f 100%);
-    padding: 24px 32px;
+    background: linear-gradient(135deg, #1a237e 0%, #0d1445 100%) !important;
+    padding: 20px 32px;
     color: white;
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.title-section h1 {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.title-section h1 i {
+    font-size: 28px;
+}
+
+.badge-count {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.stats-row {
+    display: flex;
+    gap: 32px;
+    align-items: center;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.stat-item .stat-label {
+    font-size: 11px;
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.stat-item .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: white !important;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 768px) {
+    .premium-header {
+        padding: 16px 20px;
+    }
+
+    .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .title-section h1 {
+        font-size: 20px;
+    }
+
+    .stats-row {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 20px;
+    }
+
+    .stat-item {
+        align-items: flex-start;
+    }
+
+    .stat-item .stat-value {
+        font-size: 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-row {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .stat-item .stat-value {
+        font-size: 16px;
+    }
 }
 
 .premium-toolbar {
@@ -1209,12 +1312,12 @@
 }
 
 .btn-primary {
-    background: #1a3d2f;
+    background: #2810b3;
     color: white;
 }
 
 .btn-primary:hover {
-    background: #0f2a1f;
+    background: #2c1e92;
 }
 
 .btn-outline {
@@ -1432,36 +1535,6 @@
     margin: 2px 0 0;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-}
-
-.search-wrapper {
-    flex: 1;
-    max-width: 350px;
-    position: relative;
-}
-
-.search-wrapper i {
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #6c757d;
-}
-
-.search-input {
-    width: 100%;
-    padding: 8px 14px 8px 40px;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
-    font-size: 14px;
-    background: white;
-    transition: all 0.2s;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: #1a3d2f;
-    box-shadow: 0 0 0 3px rgba(26, 61, 47, 0.08);
 }
 
 @media (max-width: 768px) {
@@ -1823,7 +1896,7 @@
     padding: 24px 30px 20px;
     background: linear-gradient(135deg, #0d179b 0%, #08118d 100%);
     color: white;
-    
+
 }
 
 .header-main {
@@ -2802,4 +2875,97 @@
     border-top: 1px solid #e9ecef;
     font-size: 12px;
     color: #6c757d;
+}
+
+/*payment.html style */
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.add-form-row {
+    display: none;
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.form-field label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #495057;
+}
+
+.form-field input,
+.form-field select {
+    padding: 6px 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-size: 13px;
+    min-width: 90px;
+}
+
+.btn-save {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-cancel {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.editable-cell {
+    cursor: pointer;
+}
+
+.editable-cell .cell-value {
+    display: block;
+}
+
+.editable-cell .edit-input {
+    display: none;
+    width: 100%;
+    padding: 4px 8px;
+    border: 2px solid #1a237e;
+    border-radius: 4px;
+    font-size: 13px;
+    background: white;
+}
+
+.editable-cell.editing .cell-value {
+    display: none;
+}
+
+.editable-cell.editing .edit-input {
+    display: block !important;
+}
+
+tr.editing {
+    background: #fff8e1 !important;
+    border-left: 3px solid #ffc107;
 }

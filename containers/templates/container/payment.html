@@ -1,267 +1,614 @@
-<!-- templates/containers/payment_list.html -->
-{% extends 'base.html' %}
+<!-- containers/templates/containers/payment_list.html -->
+{% extends 'container/container_base.html' %}
 {% load static %}
+{% load humanize %}
+
+{% block title %}Almuqbil | Payments{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="card">
-        <div class="card-header bg-light">
-            <div class="d-flex justify-content-between align-items-center">
-                <h4 class="mb-0">Payment / تراکنش‌ها</h4>
-                <div>
-                    <button class="btn btn-sm btn-success" onclick="addPaymentRow()">
-                        + Add Row
-                    </button>
-                    <button class="btn btn-sm btn-primary" onclick="saveAllPayments()">
-                        💾 Save All
-                    </button>
-                    <button class="btn btn-sm btn-secondary" onclick="exportToExcel()">
-                        📎 Export to Excel
-                    </button>
-                </div>
-            </div>
+<div class="expense-wrapper">
+    <div class="excel-box">
+
+        <!-- ===== MENU ===== -->
+        <div class="excel-menu">
+            <a href="{% url 'containers:list' %}" class="menu-item"><i class="fas fa-truck"></i> Containers</a>
+            <a href="{% url 'containers:inventory_list' %}" class="menu-item"><i class="fas fa-chart-bar"></i>
+                Inventory</a>
+            <a href="{% url 'containers:payment' %}" class="menu-item active"><i class="fas fa-credit-card"></i>
+                Payment</a>
+            <a href="{% url 'containers:expense_list' %}" class="menu-item"><i class="fas fa-receipt"></i> Expenses</a>
         </div>
-        
-        <div class="card-body p-0">
-            <!-- فیلتر سریع -->
-            <div class="row p-2 bg-white border-bottom">
-                <div class="col-md-3">
-                    <input type="text" class="form-control form-control-sm" id="searchInput" 
-                           placeholder="🔍 Search by description, paid by, received by...">
-                </div>
-                <div class="col-md-2">
-                    <select class="form-select form-select-sm" id="categoryFilter">
-                        <option value="">All Categories</option>
-                        {% for cat in categories %}
-                        <option value="{{ cat.name }}">{{ cat.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <input type="text" class="form-control form-control-sm" id="dateFrom" placeholder="Date from (e.g., Jan 1)">
-                </div>
-                <div class="col-md-2">
-                    <input type="text" class="form-control form-control-sm" id="dateTo" placeholder="Date to (e.g., Dec 31)">
-                </div>
-                <div class="col-md-3 text-end">
-                    <span class="badge bg-secondary" id="rowCount">0 rows</span>
-                </div>
+
+        <!-- ===== HEADER ===== -->
+        <header class="page-header">
+            <div class="header-main">
+                <h1 class="page-title">
+                    <i class="fas fa-credit-card"></i> Payment
+                    <span class="title-counter">{{ payments.count }} records</span>
+                </h1>
+                <p class="page-subtitle">Excel-like view • Double-click to edit • Click + to add new</p>
             </div>
-            
-            <!-- جدول اصلی مثل اکسل -->
-            <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
-                <table class="table table-bordered table-sm excel-table" id="paymentTable">
-                    <thead class="table-light" style="position: sticky; top: 0;">
-                        <tr>
-                            <th style="width: 80px">Day</th>
-                            <th style="width: 100px">Date</th>
-                            <th style="width: 200px">Description</th>
-                            <th style="width: 120px">Paid By</th>
-                            <th style="width: 120px">Received By</th>
-                            <th style="width: 120px">Category</th>
-                            <th style="width: 100px">Cash-In</th>
-                            <th style="width: 100px">Cash-Out</th>
-                            <th style="width: 80px">Rate</th>
-                            <th style="width: 100px">NZD</th>
-                            <th style="width: 60px">%</th>
-                            <th style="width: 60px">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="paymentTableBody">
-                        {% for payment in payments %}
-                        <tr data-id="{{ payment.id }}">
-                            <td class="day-cell">{{ payment.day|default:'' }}</td>
-                            <td><input type="text" class="form-control form-control-sm" value="{{ payment.date }}" data-field="date"></td>
-                            <td><input type="text" class="form-control form-control-sm" value="{{ payment.description }}" data-field="description"></td>
-                            <td>
-                                <select class="form-select form-select-sm" data-field="paid_by">
-                                    <option value="">---</option>
-                                    {% for person in people %}
-                                    <option value="{{ person.id }}" {% if payment.paid_by.id == person.id %}selected{% endif %}>
-                                        {{ person.name }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td>
-                                <select class="form-select form-select-sm" data-field="received_by">
-                                    <option value="">---</option>
-                                    {% for person in people %}
-                                    <option value="{{ person.id }}" {% if payment.received_by.id == person.id %}selected{% endif %}>
-                                        {{ person.name }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td>
-                                <select class="form-select form-select-sm" data-field="category">
-                                    <option value="">---</option>
-                                    {% for cat in categories %}
-                                    <option value="{{ cat.id }}" {% if payment.category.id == cat.id %}selected{% endif %}>
-                                        {{ cat.name }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </td>
-                            <td><input type="number" class="form-control form-control-sm text-end cash-in" value="{{ payment.cash_in|default:'' }}" data-field="cash_in" step="1"></td>
-                            <td><input type="number" class="form-control form-control-sm text-end cash-out" value="{{ payment.cash_out|default:'' }}" data-field="cash_out" step="1"></td>
-                            <td><input type="number" class="form-control form-control-sm text-end" value="{{ payment.rate|default:'' }}" data-field="rate" step="0.001"></td>
-                            <td><input type="number" class="form-control form-control-sm text-end" value="{{ payment.nzd|default:'' }}" data-field="nzd" step="0.001"></td>
-                            <td class="text-center">
-                                <input type="checkbox" class="form-check-input" data-field="is_percentage" {% if payment.is_percentage %}checked{% endif %}>
-                            </td>
-                            <td class="text-center">
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteRow(this)">✕</button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                    <tfoot class="table-secondary">
-                        <tr>
-                            <td colspan="6" class="text-end fw-bold">Total:</td>
-                            <td class="text-end fw-bold" id="totalCashIn">0</td>
-                            <td class="text-end fw-bold" id="totalCashOut">0</td>
-                            <td colspan="4"></td>
-                        </tr>
-                    </tfoot>
-                </table>
+        </header>
+
+        <!-- ===== TOOLBAR ===== -->
+        <div class="excel-toolbar">
+            <button class="toolbar-btn primary" id="addPaymentBtn">
+                <i class="fas fa-plus"></i> New Payment
+            </button>
+            <button class="toolbar-btn" onclick="location.reload()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+
+            <!-- ===== SEARCH ===== -->
+            <form method="GET" action="{% url 'containers:payment' %}" class="search-wrapper"
+                style="flex:1; max-width:350px; position:relative; display:flex; align-items:center; gap:8px;">
+                <div style="position:relative; flex:1;">
+                    <i class="fas fa-search"
+                        style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#6c757d;"></i>
+                    <input type="text" name="search" id="searchInput" placeholder="Search payments..."
+                        value="{{ search|default:'' }}"
+                        style="width:100%; padding:8px 12px 8px 36px; border:1px solid #dee2e6; border-radius:6px; font-size:13px; outline:none; transition:all 0.2s;">
+                    {% if search %}
+                    <a href="{% url 'containers:payment_list' %}"
+                        style="position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#6c757d; text-decoration:none; font-size:16px; font-weight:700;"
+                        title="Clear search">×</a>
+                    {% endif %}
+                </div>
+                <button type="submit" class="toolbar-btn primary"
+                    style="padding:8px 16px; background:#1a237e; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:500;">
+                    <i class="fas fa-search"></i>
+                </button>
+            </form>
+
+            <span style="flex:1"></span>
+            <span class="text-muted">📅 {% now "F j, Y" %}</span>
+        </div>
+
+        <!-- ===== ADD FORM (مخفی) ===== -->
+        <div class="add-form-row" id="addFormRow" style="display:none;">
+            <div class="form-field">
+                <label>Date</label>
+                <input type="text" id="new_date" placeholder="e.g., 11-Jan-25">
             </div>
+            <div class="form-field">
+                <label>Description</label>
+                <input type="text" id="new_description" placeholder="Description">
+            </div>
+            <div class="form-field">
+                <label>Rate</label>
+                <input type="number" id="new_rate" step="0.001" value="0">
+            </div>
+            <div class="form-field">
+                <label>NZD</label>
+                <input type="number" id="new_nzd" step="0.001" value="0">
+            </div>
+            <div class="form-field">
+                <label>Paid By</label>
+                <input type="text" id="new_paid_by" placeholder="Paid By">
+            </div>
+            <div class="form-field">
+                <label>Received By</label>
+                <input type="text" id="new_received_by" placeholder="Received By">
+            </div>
+            <div class="form-field">
+                <label>Cash-In</label>
+                <input type="number" id="new_cash_in" step="1" value="0">
+            </div>
+            <div class="form-field">
+                <label>Cash-Out</label>
+                <input type="number" id="new_cash_out" step="1" value="0">
+            </div>
+            <div class="form-field">
+                <label>Container</label>
+                <select id="new_container">
+                    <option value="">---</option>
+                    {% for container in containers %}
+                    <option value="{{ container.id }}">{{ container.container_no }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn-save" id="savePayment">💾 Save</button>
+            <button class="btn-cancel" id="cancelPayment">✖ Cancel</button>
+        </div>
+
+        <!-- ===== TABLE ===== -->
+        <div class="table-wrapper">
+            <table class="data-table" id="paymentTable">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Rate</th>
+                        <th>NZD</th>
+                        <th>Paid By</th>
+                        <th>Received By</th>
+                        <th>Cash-In</th>
+                        <th>Cash-Out</th>
+                        <th>Container</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    {% for payment in payments %}
+                    <tr class="data-row" data-id="{{ payment.id }}">
+                        <td class="editable-cell" data-field="date">
+                            <span class="cell-value">{{ payment.date }}</span>
+                            <input type="text" value="{{ payment.date }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="description">
+                            <span class="cell-value">{{ payment.description|truncatechars:30 }}</span>
+                            <input type="text" value="{{ payment.description }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="rate">
+                            <span class="cell-value">{{ payment.rate }}</span>
+                            <input type="number" step="0.001" value="{{ payment.rate }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="nzd">
+                            <span class="cell-value">{{ payment.nzd }}</span>
+                            <input type="number" step="0.001" value="{{ payment.nzd }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="paid_by">
+                            <span class="cell-value">{{ payment.paid_by|default:'—' }}</span>
+                            <input type="text" value="{{ payment.paid_by|default:'' }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="received_by">
+                            <span class="cell-value">{{ payment.received_by|default:'—' }}</span>
+                            <input type="text" value="{{ payment.received_by|default:'' }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="cash_in">
+                            <span class="cell-value">{% if payment.cash_in %}{{ payment.cash_in|floatformat:0|intcomma}}{% else %}—{% endif %}</span>
+                            <input type="number" step="1" value="{{ payment.cash_in|default:'' }}" class="edit-input">
+                        </td>
+                        <td class="editable-cell" data-field="cash_out">
+                            <span class="cell-value">{% if payment.cash_out %}{{ payment.cash_out|floatformat:0|intcomma}}{% else %}—{% endif %}</span>
+                            <input type="number" step="1" value="{{ payment.cash_out|default:'' }}" class="edit-input">
+                        </td>
+                        <td>{{ payment.container.container_no|default:'—' }}</td>
+                        <td class="action-cell">
+                            <button class="action-btn edit-btn" onclick="editRow(this)" title="Edit">✏️</button>
+                            <button class="action-btn save-btn" onclick="saveRow(this)" title="Save"
+                                style="display:none;">💾</button>
+                            <button class="action-btn cancel-btn" onclick="cancelEdit(this)" title="Cancel"
+                                style="display:none;">❌</button>
+                            <button class="action-btn delete-btn" onclick="deletePayment('{{ payment.id }}')"
+                                title="Delete">🗑️</button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center">No payments recorded</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="total-row">
+                        <td colspan="6"><strong>TOTAL</strong></td>
+                        <td><strong>{{ total_cash_in|floatformat:0|intcomma }}</strong></td>
+                        <td><strong>{{ total_cash_out|floatformat:0|intcomma }}</strong></td>
+                        <td colspan="2"><strong>Net: {{ net_balance|floatformat:0|intcomma }}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- ===== STATUS BAR ===== -->
+        <div class="status-bar">
+            <span><i class="fas fa-credit-card"></i> {{ payments.count }} payments</span>
+            <span><i class="fas fa-arrow-down"></i> Cash-In: {{ total_cash_in|floatformat:0|intcomma }}</span>
+            <span><i class="fas fa-arrow-up"></i> Cash-Out: {{ total_cash_out|floatformat:0|intcomma }}</span>
+            <span><i class="fas fa-edit"></i> Double-click cells to edit</span>
         </div>
     </div>
 </div>
 
 <script>
-    // محاسبه خودکار جمع Cash-In و Cash-Out
-    function updateTotals() {
-        let totalIn = 0, totalOut = 0;
-        document.querySelectorAll('#paymentTableBody tr').forEach(row => {
-            let cashIn = parseFloat(row.querySelector('.cash-in')?.value) || 0;
-            let cashOut = parseFloat(row.querySelector('.cash-out')?.value) || 0;
-            totalIn += cashIn;
-            totalOut += cashOut;
-        });
-        document.getElementById('totalCashIn').innerText = totalIn.toLocaleString();
-        document.getElementById('totalCashOut').innerText = totalOut.toLocaleString();
-        document.getElementById('rowCount').innerText = document.querySelectorAll('#paymentTableBody tr').length + ' rows';
+    // ============================================================
+    // PAYMENT - INLINE EDIT & CRUD
+    // ============================================================
+
+    let editingRow = null;
+    let originalValues = {};
+
+    function getCSRFToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, 10) === 'csrftoken=') {
+                    cookieValue = decodeURIComponent(cookie.substring(10));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
-    
-    // اضافه کردن ردیف جدید
-    function addPaymentRow() {
-        const tbody = document.getElementById('paymentTableBody');
-        const newRow = document.createElement('tr');
-        newRow.innerHTML = `
-            <td class="day-cell"></td>
-            <td><input type="text" class="form-control form-control-sm" data-field="date" placeholder="3-Jan-26"></td>
-            <td><input type="text" class="form-control form-control-sm" data-field="description" placeholder="Description"></td>
-            <td>
-                <select class="form-select form-select-sm" data-field="paid_by">
-                    <option value="">---</option>
-                    {% for person in people %}
-                    <option value="{{ person.id }}">{{ person.name }}</option>
-                    {% endfor %}
-                </select>
-            </td>
-            <td>
-                <select class="form-select form-select-sm" data-field="received_by">
-                    <option value="">---</option>
-                    {% for person in people %}
-                    <option value="{{ person.id }}">{{ person.name }}</option>
-                    {% endfor %}
-                </select>
-            </td>
-            <td>
-                <select class="form-select form-select-sm" data-field="category">
-                    <option value="">---</option>
-                    {% for cat in categories %}
-                    <option value="{{ cat.id }}">{{ cat.name }}</option>
-                    {% endfor %}
-                </select>
-            </td>
-            <td><input type="number" class="form-control form-control-sm text-end cash-in" data-field="cash_in" step="1" oninput="updateTotals()"></td>
-            <td><input type="number" class="form-control form-control-sm text-end cash-out" data-field="cash_out" step="1" oninput="updateTotals()"></td>
-            <td><input type="number" class="form-control form-control-sm text-end" data-field="rate" step="0.001"></td>
-            <td><input type="number" class="form-control form-control-sm text-end" data-field="nzd" step="0.001"></td>
-            <td class="text-center"><input type="checkbox" class="form-check-input" data-field="is_percentage"></td>
-            <td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="deleteRow(this)">✕</button></td>
-        `;
-        tbody.appendChild(newRow);
-        updateTotals();
+    const csrftoken = getCSRFToken();
+
+    // ============================================================
+    // TOGGLE ADD FORM
+    // ============================================================
+    document.getElementById('addPaymentBtn')?.addEventListener('click', function () {
+        const form = document.getElementById('addFormRow');
+        form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+        if (form.style.display === 'flex') document.getElementById('new_date').focus();
+    });
+
+    document.getElementById('cancelPayment')?.addEventListener('click', function () {
+        document.getElementById('addFormRow').style.display = 'none';
+        clearPaymentForm();
+    });
+
+    function clearPaymentForm() {
+        document.getElementById('new_date').value = '';
+        document.getElementById('new_description').value = '';
+        document.getElementById('new_rate').value = '0';
+        document.getElementById('new_nzd').value = '0';
+        document.getElementById('new_paid_by').value = '';
+        document.getElementById('new_received_by').value = '';
+        document.getElementById('new_cash_in').value = '0';
+        document.getElementById('new_cash_out').value = '0';
+        document.getElementById('new_container').value = '';
     }
-    
-    // حذف ردیف
-    function deleteRow(btn) {
-        btn.closest('tr').remove();
-        updateTotals();
-    }
-    
-    // ذخیره همه ردیف‌ها با AJAX
-    function saveAllPayments() {
-        const payments = [];
-        document.querySelectorAll('#paymentTableBody tr').forEach(row => {
-            const id = row.getAttribute('data-id');
-            const payment = {
-                id: id || null,
-                date: row.querySelector('[data-field="date"]')?.value || '',
-                description: row.querySelector('[data-field="description"]')?.value || '',
-                paid_by: row.querySelector('[data-field="paid_by"]')?.value || null,
-                received_by: row.querySelector('[data-field="received_by"]')?.value || null,
-                category: row.querySelector('[data-field="category"]')?.value || null,
-                cash_in: row.querySelector('[data-field="cash_in"]')?.value || 0,
-                cash_out: row.querySelector('[data-field="cash_out"]')?.value || 0,
-                rate: row.querySelector('[data-field="rate"]')?.value || 0,
-                nzd: row.querySelector('[data-field="nzd"]')?.value || 0,
-                is_percentage: row.querySelector('[data-field="is_percentage"]')?.checked || false,
-            };
-            payments.push(payment);
-        });
-        
-        fetch('/containers/api/payments/bulk_save/', {
+
+    // ============================================================
+    // SAVE NEW PAYMENT
+    // ============================================================
+    document.getElementById('savePayment')?.addEventListener('click', function () {
+        const data = {
+            date: document.getElementById('new_date').value,
+            description: document.getElementById('new_description').value,
+            rate: document.getElementById('new_rate').value || 0,
+            nzd: document.getElementById('new_nzd').value || 0,
+            paid_by: document.getElementById('new_paid_by').value,
+            received_by: document.getElementById('new_received_by').value,
+            cash_in: document.getElementById('new_cash_in').value || 0,
+            cash_out: document.getElementById('new_cash_out').value || 0,
+            container: document.getElementById('new_container').value,
+        };
+
+        // اعتبارسنجی
+        if (!data.date) {
+            showToast('Date is required', 'error');
+            document.getElementById('new_date').focus();
+            return;
+        }
+        if (!data.description) {
+            showToast('Description is required', 'error');
+            document.getElementById('new_description').focus();
+            return;
+        }
+        if (data.cash_in == 0 && data.cash_out == 0) {
+            showToast('Cash-In or Cash-Out must be filled', 'error');
+            return;
+        }
+
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '⏳ Saving...';
+        btn.disabled = true;
+
+        fetch('/containers/api/payment/create/', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({payments: payments})
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams(data)
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Saved successfully!');
-                location.reload();
-            } else {
-                alert('Error: ' + data.error);
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('✅ Payment created!', 'success');
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    showToast('❌ ' + data.error, 'error');
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            })
+            .catch(() => {
+                showToast('❌ Network error', 'error');
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            });
+    });
+
+    // ============================================================
+    // EDIT ROW
+    // ============================================================
+    window.editRow = function (btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+
+        if (editingRow && editingRow !== rowId) {
+            const prevRow = document.querySelector(`tr[data-id="${editingRow}"]`);
+            if (prevRow) saveRow(prevRow.querySelector('.save-btn'));
+        }
+
+        originalValues[rowId] = {};
+        row.querySelectorAll('.editable-cell').forEach(cell => {
+            const field = cell.dataset.field;
+            originalValues[rowId][field] = cell.querySelector('.cell-value').innerText.trim().replace('—', '').trim();
+        });
+
+        row.classList.add('editing');
+        row.querySelector('.edit-btn').style.display = 'none';
+        row.querySelector('.save-btn').style.display = 'inline-block';
+        row.querySelector('.cancel-btn').style.display = 'inline-block';
+        editingRow = rowId;
+    };
+
+    // ============================================================
+    // SAVE ROW
+    // ============================================================
+    window.saveRow = function (btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+        const changes = {};
+
+        row.querySelectorAll('.editable-cell.editing').forEach(cell => {
+            const field = cell.dataset.field;
+            const input = cell.querySelector('.edit-input');
+            if (input) {
+                const newValue = input.value.trim();
+                const oldValue = originalValues[rowId] ? originalValues[rowId][field] || '' : '';
+                if (newValue !== oldValue) {
+                    changes[field] = newValue;
+                }
+                const displayValue = newValue || '—';
+                cell.querySelector('.cell-value').textContent = displayValue;
+                cell.classList.remove('editing');
             }
         });
-    }
-    
-    // فیلتر جستجو
-    document.getElementById('searchInput').addEventListener('input', function() {
-        const search = this.value.toLowerCase();
-        document.querySelectorAll('#paymentTableBody tr').forEach(row => {
-            const text = row.innerText.toLowerCase();
-            row.style.display = text.includes(search) ? '' : 'none';
+
+        row.querySelector('.edit-btn').style.display = 'inline-block';
+        row.querySelector('.save-btn').style.display = 'none';
+        row.querySelector('.cancel-btn').style.display = 'none';
+        row.classList.remove('editing');
+        editingRow = null;
+
+        if (Object.keys(changes).length > 0) {
+            console.log('Saving payment changes:', changes);
+
+            fetch(`/containers/api/payment/${rowId}/update/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(changes)
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('✅ Payment updated!', 'success');
+                    } else {
+                        showToast('❌ ' + data.error, 'error');
+                        // Revert
+                        row.querySelectorAll('.editable-cell').forEach(cell => {
+                            const field = cell.dataset.field;
+                            if (originalValues[rowId] && originalValues[rowId][field]) {
+                                cell.querySelector('.cell-value').textContent = originalValues[rowId][field];
+                            }
+                        });
+                    }
+                })
+                .catch(() => {
+                    showToast('❌ Network error', 'error');
+                });
+        } else {
+            showToast('ℹ️ No changes', 'info');
+        }
+    };
+
+    // ============================================================
+    // CANCEL EDIT
+    // ============================================================
+    window.cancelEdit = function (btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+
+        row.querySelectorAll('.editable-cell.editing').forEach(cell => {
+            const field = cell.dataset.field;
+            if (originalValues[rowId] && originalValues[rowId][field]) {
+                cell.querySelector('.cell-value').textContent = originalValues[rowId][field];
+            }
+            cell.classList.remove('editing');
+            const input = cell.querySelector('.edit-input');
+            if (input) input.style.display = 'none';
+        });
+
+        row.querySelector('.edit-btn').style.display = 'inline-block';
+        row.querySelector('.save-btn').style.display = 'none';
+        row.querySelector('.cancel-btn').style.display = 'none';
+        row.classList.remove('editing');
+        editingRow = null;
+        showToast('✖️ Cancelled', 'info');
+    };
+
+    // ============================================================
+    // DOUBLE-CLICK TO EDIT
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.editable-cell').forEach(cell => {
+            cell.addEventListener('dblclick', function () {
+                const row = this.closest('tr');
+
+                if (!row.classList.contains('editing')) {
+                    const editBtn = row.querySelector('.edit-btn');
+                    if (editBtn) editRow(editBtn);
+                }
+
+                this.classList.add('editing');
+                const input = this.querySelector('.edit-input');
+                if (input) {
+                    input.style.display = 'block';
+                    setTimeout(function () {
+                        input.focus();
+                        input.select();
+                    }, 100);
+                }
+            });
         });
     });
-    
-    // خودکار پر شدن Day از روی Date
-    document.querySelectorAll('[data-field="date"]').forEach(input => {
-        input.addEventListener('change', function() {
-            const dateStr = this.value;
-            if (dateStr) {
-                // تبدیل "3-Jan-26" به روز هفته
-                fetch(`/containers/api/get_day/?date=${encodeURIComponent(dateStr)}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.day) {
-                            this.closest('tr').querySelector('.day-cell').innerText = data.day;
-                        }
-                    });
+
+    // ============================================================
+    // ESCAPE KEY
+    // ============================================================
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && editingRow) {
+            const row = document.querySelector(`tr[data-id="${editingRow}"]`);
+            if (row) {
+                const cancelBtn = row.querySelector('.cancel-btn');
+                if (cancelBtn) cancelEdit(cancelBtn);
+            }
+        }
+    });
+
+    // ============================================================
+    // DELETE PAYMENT
+    // ============================================================
+    window.deletePayment = function (id) {
+        if (confirm('Delete this payment?')) {
+            fetch(`/containers/api/payment/${id}/delete/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrftoken }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('✅ Payment deleted!', 'success');
+                        const row = document.querySelector(`tr[data-id="${id}"]`);
+                        if (row) row.remove();
+                        // Update row numbers
+                        document.querySelectorAll('#tableBody tr').forEach((row, index) => {
+                            row.querySelector('td:first-child').textContent = index + 1;
+                        });
+                        // Update totals
+                        updatePaymentTotals();
+                    } else {
+                        showToast('❌ ' + data.error, 'error');
+                    }
+                })
+                .catch(() => {
+                    showToast('❌ Network error', 'error');
+                });
+        }
+    };
+
+    // ============================================================
+    // UPDATE TOTALS
+    // ============================================================
+    function updatePaymentTotals() {
+        let totalCashIn = 0;
+        let totalCashOut = 0;
+
+        document.querySelectorAll('#tableBody tr').forEach(row => {
+            const cashInCell = row.querySelector('[data-field="cash_in"] .cell-value');
+            const cashOutCell = row.querySelector('[data-field="cash_out"] .cell-value');
+
+            if (cashInCell) {
+                const val = parseFloat(cashInCell.textContent.replace(/,/g, '')) || 0;
+                totalCashIn += val;
+            }
+            if (cashOutCell) {
+                const val = parseFloat(cashOutCell.textContent.replace(/,/g, '')) || 0;
+                totalCashOut += val;
             }
         });
-    });
-    
-    updateTotals();
-    
-    // خروجی به Excel
-    function exportToExcel() {
-        window.location.href = '/containers/api/payments/export/?format=csv';
+
+        const tfoot = document.querySelector('tfoot');
+        if (tfoot) {
+            const cells = tfoot.querySelectorAll('td');
+            if (cells.length >= 4) {
+                cells[1].textContent = totalCashIn.toLocaleString();
+                cells[2].textContent = totalCashOut.toLocaleString();
+                const net = totalCashIn - totalCashOut;
+                cells[3].textContent = 'Net: ' + net.toLocaleString();
+            }
+        }
     }
+
+    // ============================================================
+    // SEARCH
+    // ============================================================
+    document.getElementById('searchInput')?.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            const params = new URLSearchParams();
+            if (this.value) params.append('search', this.value);
+            window.location.href = '/containers/payments/?' + params.toString();
+        }
+    });
+
+    // ============================================================
+    // TOAST NOTIFICATION
+    // ============================================================
+    function showToast(message, type) {
+        const colors = {
+            success: '#28a745',
+            error: '#dc3545',
+            warning: '#ffc107',
+            info: '#17a2b8'
+        };
+
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+        position: fixed; top: 24px; right: 24px; padding: 12px 24px;
+        background: ${colors[type] || colors.info}; color: white;
+        border-radius: 8px; font-weight: 500; z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // ============================================================
+    // INIT - SET DEFAULT DATE
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set current date in format DD-MMM-YY
+        const now = new Date();
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = months[now.getMonth()];
+        const year = String(now.getFullYear()).slice(-2);
+        const dateInput = document.getElementById('new_date');
+        if (dateInput) {
+            dateInput.value = day + '-' + month + '-' + year;
+        }
+    });
+
+    // ============================================================
+    // KEYBOARD SHORTCUTS
+    // ============================================================
+    document.addEventListener('keydown', function (e) {
+        // Ctrl + N = New Payment
+        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+            e.preventDefault();
+            const btn = document.getElementById('addPaymentBtn');
+            if (btn) btn.click();
+        }
+    });
+
+    // ============================================================
+    // STYLE FOR SLIDE IN ANIMATION
+    // ============================================================
+    const style = document.createElement('style');
+    style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+`;
+    document.head.appendChild(style);
 </script>
+
 {% endblock %}

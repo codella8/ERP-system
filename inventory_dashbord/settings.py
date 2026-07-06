@@ -146,7 +146,7 @@ JAZZMIN_SETTINGS = {
     "site_header": "Almuqbil",
     "site_brand": "Almuqbil",
 
-    "site_logo": "assets/car.png",
+    "site_logo": "",
     "login_logo": "assets/logo-login.png",
 
     "theme": "darkly", 
@@ -172,7 +172,7 @@ JAZZMIN_SETTINGS = {
     },
 
     "topmenu_links": [
-        {"name": "Main Dashbord", "url": "/accounts/dashboard/", "permissions": ["auth.view_user"]},
+        {"name": "Main Dashbord", "url": "/accounts/home/", "permissions": ["auth.view_user"]},
     ],
 
     "usermenu_links": [

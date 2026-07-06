@@ -1,3 +1,4 @@
+<!-- containers/templates/containers/container_list.html -->
 {% extends 'container/container_base.html' %}
 {% load static %}
 {% load humanize %}
@@ -6,46 +7,48 @@
 
 {% block content %}
 
- <div class="excel-menu">
-            <a href="{% url 'containers:list' %}" class="menu-item">
-                <i class="fas fa-ship"></i> Containers
-            </a>
-            <a href="{% url 'containers:inventory_list' %}" class="menu-item">
-                <i class="fas fa-chart-bar"></i> Inventory
-            </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-credit-card"></i> Payment
-            </a>
-            <a href="{% url 'containers:expense_list' %}" class="menu-item">
-                <i class="fas fa-credit-card"></i> Expenses
-            </a>
+<div class="excel-menu">
+    <a href="{% url 'containers:list' %}" class="menu-item active">
+        <i class="fas fa-truck"></i> Containers
+    </a>
+    <a href="{% url 'containers:inventory_list' %}" class="menu-item">
+        <i class="fas fa-chart-bar"></i> Inventory
+    </a>
+    <a href="{% url 'containers:payment' %}" class="menu-item">
+        <i class="fas fa-credit-card"></i> Payment
+    </a>
+    <a href="{% url 'containers:expense_list' %}" class="menu-item">
+        <i class="fas fa-receipt"></i> Expenses
+    </a>
 </div>
+
 <div class="premium-container">
     <div class="glass-card">
-        <!-- Premium Header -->
+        
+        <!-- ===== HEADER ===== -->
         <div class="premium-header">
             <div class="header-content">
                 <div class="title-section">
                     <h1>
-                        <i class="fas fa-ship"></i>
+                        <i class="fas fa-truck"></i>
                         Container Management
                         <span class="badge-count">{{ containers|length }} Total</span>
                     </h1>
                 </div>
                 <div class="stats-row">
                     <div class="stat-item">
-                        <div class="stat-value">AED{{ total_value|default:0|floatformat:0|intcomma }}</div>
-                        <div class="stat-label">Total Value</div>
+                        <span class="stat-label">Total Value</span>
+                        <span class="stat-value">AED {{ total_value|default:0|floatformat:0|intcomma }}</span>
                     </div>
                     <div class="stat-item">
-                        <div class="stat-value">AED{{ total_sales|default:0|floatformat:0|intcomma }}</div>
-                        <div class="stat-label">Total Sales</div>
+                        <span class="stat-label">Total Sales</span>
+                        <span class="stat-value">AED {{ total_sales|default:0|floatformat:0|intcomma }}</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Toolbar -->
+        <!-- ===== TOOLBAR ===== -->
         <div class="premium-toolbar">
             <button class="btn-premium btn-primary" id="newContainerBtn">
                 <i class="fas fa-plus"></i> New Container
@@ -56,29 +59,43 @@
             <button class="btn-premium btn-outline" onclick="exportToCSV()">
                 <i class="fas fa-download"></i> Export
             </button>
-            <div class="search-wrapper">
-                <i class="fas fa-search"></i>
-                <input type="text" class="search-input" id="searchInput" 
-                       placeholder="Search by container, supplier or code..." value="{{ search|default:'' }}">
-            </div>
+            
+            <form method="GET" action="{% url 'containers:list' %}" class="search-wrapper" style="flex:1; max-width:350px; position:relative; display:flex; align-items:center; gap:8px;">
+                <div style="position:relative; flex:1;">
+                    <i class="fas fa-search" style="position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#6c757d;"></i>
+                    <input type="text" name="search" class="search-input" id="searchInput" 
+                           placeholder="Search by container, supplier or code..." 
+                           value="{{ search|default:'' }}"
+                           style="width:100%; padding:8px 14px 8px 40px; border:1px solid #e9ecef; border-radius:8px; font-size:14px; background:white; transition:all 0.2s;">
+                    {% if search %}
+                    <a href="{% url 'containers:list' %}" style="position:absolute; right:12px; top:50%; transform:translateY(-50%); color:#6c757d; text-decoration:none; font-size:18px; font-weight:700;" title="Clear search">×</a>
+                    {% endif %}
+                </div>
+                <button type="submit" class="btn-premium btn-primary" style="padding:8px 16px; white-space:nowrap; border:none; border-radius:8px; background:#1a237e; color:white; cursor:pointer; font-weight:500;">
+                    <i class="fas fa-search"></i>
+                </button>
+            </form>
+            
+            <span style="flex:1"></span>
+            <span class="text-muted">📅 {% now "F j, Y" %}</span>
         </div>
 
-        <!-- Add Form Row (Inline) -->
-        <div class="add-form-row" id="addFormRow">
+        <!-- ===== ADD FORM ===== -->
+        <div class="add-form-row" id="addFormRow" style="display:none;">
             <div class="form-field">
-                <label><i class="fas fa-truck"></i> Supplier</label>
+                <label>Supplier</label>
                 <input type="text" id="new_supplier" placeholder="e.g., Active, Xpress">
             </div>
             <div class="form-field">
-                <label><i class="fas fa-hashtag"></i> Container No. *</label>
-                <input type="text" id="new_container_no" name="container_no" placeholder="e.g., MRSU-5724751">
+                <label>Container No. *</label>
+                <input type="text" id="new_container_no" placeholder="e.g., MRSU-5724751">
             </div>
             <div class="form-field">
-                <label><i class="fas fa-barcode"></i> Code</label>
+                <label>Code</label>
                 <input type="text" id="new_code" placeholder="e.g., G50">
             </div>
             <div class="form-field">
-                <label><i class="far fa-calendar-alt"></i> Arrival Date</label>
+                <label>Arrival Date</label>
                 <input type="text" id="new_arrival_date" placeholder="e.g., Jan 31">
             </div>
             <button class="btn-premium btn-success" id="saveNewContainer">
@@ -89,7 +106,7 @@
             </button>
         </div>
 
-        <!-- Main Table -->
+        <!-- ===== TABLE ===== -->
         <div class="table-container">
             <table class="premium-table">
                 <thead>
@@ -106,7 +123,7 @@
                 </thead>
                 <tbody id="tableBody">
                     {% for container in containers %}
-                    <tr class="data-row" data-id="{{ container.id }}" data-container-no="{{ container.container_no }}">
+                    <tr class="data-row" data-id="{{ container.id }}">
                         <td class="editable-cell" data-field="supplier">
                             <div class="display-value">
                                 {{ container.supplier|default:'—' }}
@@ -135,10 +152,10 @@
                             </div>
                             <input type="text" value="{{ container.arrival_date|default:'' }}" class="edit-input">
                         </td>
-                        <td class="value-neutral">AED{{ container.total_sales|default:0|floatformat:0|intcomma }}</td>
-                        <td class="value-neutral">AED{{ container.total_expenses|default:0|floatformat:0|intcomma }}</td>
+                        <td class="value-neutral">AED {{ container.total_sales|default:0|floatformat:0|intcomma }}</td>
+                        <td class="value-neutral">AED {{ container.total_expenses|default:0|floatformat:0|intcomma }}</td>
                         <td class="{% if container.net_value >= 0 %}value-positive{% else %}value-negative{% endif %}">
-                            AED{{ container.net_value|default:0|floatformat:0|intcomma }}
+                            AED {{ container.net_value|default:0|floatformat:0|intcomma }}
                         </td>
                         <td>
                             <div class="action-buttons">
@@ -180,17 +197,17 @@
             </table>
         </div>
 
-        <!-- Add Row Button -->
+        <!-- ===== ADD ROW BUTTON ===== -->
         <button class="add-row-premium" id="addRowBtn">
             <i class="fas fa-plus-circle"></i> Add New Container
         </button>
 
-        <!-- Status Bar -->
+        <!-- ===== STATUS BAR ===== -->
         <div class="status-bar-premium">
             <div class="status-left">
                 <span><i class="fas fa-chart-line"></i> {{ containers|length }} containers</span>
                 <span><i class="fas fa-boxes"></i> {{ total_items|default:0 }} items</span>
-                <span><i class="fas fa-dollar-sign"></i> AED{{ total_value|default:0|floatformat:0|intcomma }} total value</span>
+                <span><i class="fas fa-dollar-sign"></i> AED {{ total_value|default:0|floatformat:0|intcomma }} total value</span>
             </div>
             <div class="status-right">
                 <span class="weather"><i class="fas fa-sun"></i> 96°F Sunny</span>
@@ -198,21 +215,25 @@
                 <span><i class="far fa-calendar-alt"></i> {% now "m/d/Y" %}</span>
             </div>
         </div>
+
     </div>
 </div>
 
 <script>
+    // ============================================================
+    // INLINE EDIT - COMPLETE
+    // ============================================================
+
     let editingRow = null;
     let originalValues = {};
 
-    // Get CSRF Token
     function getCSRFToken() {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
             const cookies = document.cookie.split(';');
             for (let i = 0; i < cookies.length; i++) {
                 const cookie = cookies[i].trim();
-                if (cookie.substring(0, 10) === ('csrftoken' + '=')) {
+                if (cookie.substring(0, 10) === 'csrftoken=') {
                     cookieValue = decodeURIComponent(cookie.substring(10));
                     break;
                 }
@@ -222,43 +243,198 @@
     }
     const csrftoken = getCSRFToken();
 
-    // Live Clock
-    function updateClock() {
-        const now = new Date();
-        const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        const clockElement = document.getElementById('liveClock');
-        if (clockElement) clockElement.textContent = time;
-    }
-    updateClock();
-    setInterval(updateClock, 1000);
+    // ============================================================
+    // NEW CONTAINER FORM TOGGLE
+    // ============================================================
 
-    // Toggle Add Form
     function showAddForm() {
-        document.getElementById('addFormRow').style.display = 'flex';
-        document.getElementById('new_container_no').focus();
+        const form = document.getElementById('addFormRow');
+        if (form) {
+            form.style.display = 'flex';
+            setTimeout(function() {
+                document.getElementById('new_container_no').focus();
+            }, 100);
+        }
     }
 
     function hideAddForm() {
-        document.getElementById('addFormRow').style.display = 'none';
-        clearAddForm();
+        const form = document.getElementById('addFormRow');
+        if (form) {
+            form.style.display = 'none';
+            document.getElementById('new_supplier').value = '';
+            document.getElementById('new_container_no').value = '';
+            document.getElementById('new_code').value = '';
+            document.getElementById('new_arrival_date').value = '';
+        }
     }
 
-    function clearAddForm() {
-        document.getElementById('new_supplier').value = '';
-        document.getElementById('new_container_no').value = '';
-        document.getElementById('new_code').value = '';
-        document.getElementById('new_arrival_date').value = '';
-    }
+    // ============================================================
+    // EDIT ROW
+    // ============================================================
+    window.editRow = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
 
-    document.getElementById('newContainerBtn')?.addEventListener('click', showAddForm);
-    document.getElementById('addRowBtn')?.addEventListener('click', showAddForm);
-    document.getElementById('emptyStateAddBtn')?.addEventListener('click', showAddForm);
-    document.getElementById('cancelNewContainer')?.addEventListener('click', hideAddForm);
+        if (editingRow && editingRow !== rowId) {
+            const prevRow = document.querySelector(`tr[data-id="${editingRow}"]`);
+            if (prevRow) {
+                const saveBtn = prevRow.querySelector('.save');
+                if (saveBtn) saveRow(saveBtn);
+            }
+        }
 
-    // Save New Container
+        originalValues[rowId] = {};
+        row.querySelectorAll('.editable-cell').forEach(function(cell) {
+            const field = cell.dataset.field;
+            const displayDiv = cell.querySelector('.display-value');
+            originalValues[rowId][field] = displayDiv ? displayDiv.innerText.trim().replace('—', '').trim() : '';
+        });
+
+        row.querySelectorAll('.editable-cell').forEach(function(cell) {
+            cell.classList.add('editing');
+        });
+        row.querySelector('.edit').style.display = 'none';
+        row.querySelector('.save').style.display = 'inline-block';
+        row.querySelector('.cancel').style.display = 'inline-block';
+        row.classList.add('editing');
+        editingRow = rowId;
+    };
+
+    // ============================================================
+    // SAVE ROW
+    // ============================================================
+    window.saveRow = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+        const changes = {};
+
+        row.querySelectorAll('.editable-cell.editing').forEach(function(cell) {
+            const field = cell.dataset.field;
+            const input = cell.querySelector('.edit-input');
+            if (input) {
+                const newValue = input.value.trim();
+                const oldValue = originalValues[rowId] ? originalValues[rowId][field] || '' : '';
+                if (newValue !== oldValue) {
+                    changes[field] = newValue;
+                }
+                const displayValue = newValue || '—';
+                const displayDiv = cell.querySelector('.display-value');
+                if (displayDiv) {
+                    displayDiv.innerHTML = displayValue + ' <i class="fas fa-pen edit-icon"></i>';
+                }
+                cell.classList.remove('editing');
+            }
+        });
+
+        row.querySelector('.edit').style.display = 'inline-block';
+        row.querySelector('.save').style.display = 'none';
+        row.querySelector('.cancel').style.display = 'none';
+        row.classList.remove('editing');
+        editingRow = null;
+
+        if (Object.keys(changes).length > 0) {
+            console.log('Saving changes:', changes);
+            
+            fetch('/containers/api/container/' + rowId + '/update/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(changes)
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    showToast('✅ Changes saved!', 'success');
+                } else {
+                    showToast('❌ ' + data.error, 'error');
+                    row.querySelectorAll('.editable-cell').forEach(function(cell) {
+                        const field = cell.dataset.field;
+                        const displayDiv = cell.querySelector('.display-value');
+                        if (displayDiv && originalValues[rowId] && originalValues[rowId][field]) {
+                            displayDiv.innerHTML = originalValues[rowId][field] + ' <i class="fas fa-pen edit-icon"></i>';
+                        }
+                    });
+                }
+            })
+            .catch(function() {
+                showToast('❌ Network error', 'error');
+            });
+        } else {
+            showToast('ℹ️ No changes', 'info');
+        }
+    };
+
+    // ============================================================
+    // CANCEL EDIT
+    // ============================================================
+    window.cancelEdit = function(btn) {
+        const row = btn.closest('tr');
+        const rowId = row.dataset.id;
+
+        row.querySelectorAll('.editable-cell.editing').forEach(function(cell) {
+            const field = cell.dataset.field;
+            const displayDiv = cell.querySelector('.display-value');
+            if (displayDiv && originalValues[rowId] && originalValues[rowId][field]) {
+                displayDiv.innerHTML = originalValues[rowId][field] + ' <i class="fas fa-pen edit-icon"></i>';
+            }
+            cell.classList.remove('editing');
+        });
+
+        row.querySelector('.edit').style.display = 'inline-block';
+        row.querySelector('.save').style.display = 'none';
+        row.querySelector('.cancel').style.display = 'none';
+        row.classList.remove('editing');
+        editingRow = null;
+        showToast('✖️ Cancelled', 'info');
+    };
+
+    // ============================================================
+    // DOUBLE-CLICK TO EDIT
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.editable-cell').forEach(function(cell) {
+            cell.addEventListener('dblclick', function() {
+                const row = this.closest('tr');
+                const rowId = row.dataset.id;
+                
+                if (!row.classList.contains('editing')) {
+                    const editBtn = row.querySelector('.edit');
+                    if (editBtn) editRow(editBtn);
+                }
+                
+                const input = this.querySelector('.edit-input');
+                if (input) {
+                    setTimeout(function() {
+                        input.focus();
+                        input.select();
+                    }, 100);
+                }
+            });
+        });
+    });
+
+    // ============================================================
+    // ESCAPE KEY
+    // ============================================================
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && editingRow) {
+            const row = document.querySelector('tr[data-id="' + editingRow + '"]');
+            if (row) {
+                const cancelBtn = row.querySelector('.cancel');
+                if (cancelBtn) cancelEdit(cancelBtn);
+            }
+        }
+    });
+
+    // ============================================================
+    // SAVE NEW CONTAINER
+    // ============================================================
     document.getElementById('saveNewContainer')?.addEventListener('click', function() {
         const containerNo = document.getElementById('new_container_no').value.trim();
-        
         if (!containerNo) {
             showToast('Container number is required', 'error');
             return;
@@ -266,132 +442,49 @@
 
         const btn = this;
         const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<span class="spinner"></span> Saving...';
+        btn.innerHTML = '⏳ Saving...';
         btn.disabled = true;
 
         const formData = new URLSearchParams();
-        formData.append('container_no', containerNo); 
+        formData.append('container_no', containerNo);
         formData.append('supplier', document.getElementById('new_supplier').value);
         formData.append('code', document.getElementById('new_code').value);
         formData.append('arrival_date', document.getElementById('new_arrival_date').value);
 
-        fetch('{% url "containers:container_create_ajax" %}', {
+        fetch('/containers/api/container/create/', {
             method: 'POST',
             headers: { 'X-CSRFToken': csrftoken },
             body: formData
         })
-        .then(r => r.json())
-        .then(data => {
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
             if (data.success) {
-                showToast('✅ Container created successfully!', 'success');
-                setTimeout(() => location.reload(), 800);
+                showToast('✅ Container created!', 'success');
+                setTimeout(function() { location.reload(); }, 800);
             } else {
                 showToast('❌ ' + data.error, 'error');
                 btn.innerHTML = originalHtml;
                 btn.disabled = false;
             }
         })
-        .catch(() => {
+        .catch(function() {
             showToast('❌ Network error', 'error');
             btn.innerHTML = originalHtml;
             btn.disabled = false;
         });
     });
 
-    // Edit Row
-    window.editRow = function(btn) {
-        const row = btn.closest('tr');
-        const rowId = row.dataset.id;
-
-        if (editingRow && editingRow !== rowId) {
-            const prevRow = document.querySelector(`tr[data-id="${editingRow}"]`);
-            if (prevRow) saveRow(prevRow.querySelector('.save'));
-        }
-
-        originalValues[rowId] = {};
-        row.querySelectorAll('.editable-cell').forEach(cell => {
-            const field = cell.dataset.field;
-            originalValues[rowId][field] = cell.querySelector('.display-value').innerText.trim().replace('—', '');
-        });
-
-        row.querySelectorAll('.editable-cell').forEach(cell => cell.classList.add('editing'));
-        row.querySelector('.edit').style.display = 'none';
-        row.querySelector('.save').style.display = 'inline-block';
-        row.querySelector('.cancel').style.display = 'inline-block';
-        editingRow = rowId;
-    };
-
-    // Save Row
-    window.saveRow = function(btn) {
-        const row = btn.closest('tr');
-        const rowId = row.dataset.id;
-        const changes = {};
-
-        row.querySelectorAll('.editable-cell').forEach(cell => {
-            const field = cell.dataset.field;
-            const newValue = cell.querySelector('.edit-input').value;
-            changes[field] = newValue;
-            cell.classList.remove('editing');
-        });
-
-        fetch(`/containers/api/container/${rowId}/update/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(changes)
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                Object.keys(changes).forEach(field => {
-                    const cell = row.querySelector(`.editable-cell[data-field="${field}"]`);
-                    const displayValue = changes[field] || '—';
-                    cell.querySelector('.display-value').innerHTML = `${displayValue} <i class="fas fa-pen edit-icon"></i>`;
-                });
-                showToast('✅ Changes saved!', 'success');
-                setTimeout(() => location.reload(), 500);
-            } else {
-                showToast('❌ ' + data.error, 'error');
-            }
-        })
-        .catch(() => showToast('❌ Error saving changes', 'error'));
-
-        row.querySelector('.edit').style.display = 'inline-block';
-        row.querySelector('.save').style.display = 'none';
-        row.querySelector('.cancel').style.display = 'none';
-        editingRow = null;
-    };
-
-    // Cancel Edit
-    window.cancelEdit = function(btn) {
-        const row = btn.closest('tr');
-        const rowId = row.dataset.id;
-
-        row.querySelectorAll('.editable-cell').forEach(cell => {
-            const field = cell.dataset.field;
-            const originalValue = originalValues[rowId][field] || '—';
-            cell.querySelector('.display-value').innerHTML = `${originalValue} <i class="fas fa-pen edit-icon"></i>`;
-            cell.classList.remove('editing');
-        });
-
-        row.querySelector('.edit').style.display = 'inline-block';
-        row.querySelector('.save').style.display = 'none';
-        row.querySelector('.cancel').style.display = 'none';
-        editingRow = null;
-        showToast('✖️ Editing cancelled', 'info');
-    };
-
-    // Delete Container
+    // ============================================================
+    // DELETE CONTAINER
+    // ============================================================
     window.deleteContainer = function(containerId, containerNo) {
-        if (confirm(`⚠️ Delete container "${containerNo}"?\n\nThis action cannot be undone.`)) {
-            fetch(`/containers/api/container/${containerId}/delete/`, {
+        if (confirm('⚠️ Delete container "' + containerNo + '"?\n\nThis action cannot be undone.')) {
+            fetch('/containers/api/container/' + containerId + '/delete/', {
                 method: 'POST',
                 headers: { 'X-CSRFToken': csrftoken }
             })
-            .then(r => r.json())
-            .then(data => {
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
                 if (data.success) {
                     showToast('✅ Container deleted', 'success');
                     location.reload();
@@ -402,36 +495,101 @@
         }
     };
 
-    // Search
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-        let debounce;
-        searchInput.addEventListener('input', function() {
-            clearTimeout(debounce);
-            debounce = setTimeout(() => {
-                const params = new URLSearchParams();
-                if (this.value) params.append('search', this.value);
-                window.location.href = '{% url "containers:list" %}?' + params.toString();
-            }, 500);
-        });
-    }
+    // ============================================================
+    // SEARCH
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            let debounce;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(debounce);
+                debounce = setTimeout(function() {
+                    const params = new URLSearchParams();
+                    if (this.value) params.append('search', this.value);
+                    window.location.href = '/containers/?' + params.toString();
+                }, 500);
+            });
+        }
+    });
 
-    // Export CSV
-    window.exportToCSV = () => {
-        window.location.href = '{% url "containers:export_containers_csv" %}';
+    // ============================================================
+    // EXPORT CSV
+    // ============================================================
+    window.exportToCSV = function() {
+        window.location.href = '/containers/export/containers/csv/';
     };
 
-    // Toast
-    function showToast(message, type) {
-        const colors = { success: '#06a77d', error: '#e63946', info: '#4361ee' };
-        const toast = document.createElement('div');
-        toast.className = `toast-premium ${type}`;
-        toast.innerHTML = `
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-            <span>${message}</span>
-        `;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
+    // ============================================================
+    // LIVE CLOCK
+    // ============================================================
+    function updateClock() {
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        const clockElement = document.getElementById('liveClock');
+        if (clockElement) clockElement.textContent = time;
     }
+    updateClock();
+    setInterval(updateClock, 1000);
+
+    // ============================================================
+    // TOAST
+    // ============================================================
+    function showToast(message, type) {
+        const colors = { success: '#1a237e', error: '#dc3545', info: '#17a2b8' };
+        const toast = document.createElement('div');
+        toast.className = 'toast-premium';
+        toast.style.cssText = `
+            position: fixed; bottom: 24px; right: 24px; padding: 12px 24px;
+            background: white; border-left: 4px solid ${colors[type] || colors.info};
+            border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 9999; font-weight: 500;
+            animation: slideIn 0.3s ease;
+            font-family: 'Inter', sans-serif;
+        `;
+        const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
+        toast.innerHTML = '<i class="fas ' + icon + '" style="color:' + (colors[type] || colors.info) + '; margin-right:8px;"></i> ' + message;
+        document.body.appendChild(toast);
+        setTimeout(function() {
+            toast.remove();
+        }, 3000);
+    }
+
+    // ============================================================
+    // EVENT LISTENERS FOR ALL BUTTONS
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        // New Container Button
+        const newBtn = document.getElementById('newContainerBtn');
+        if (newBtn) {
+            newBtn.addEventListener('click', showAddForm);
+        }
+        
+        // Add Row Button
+        const addRowBtn = document.getElementById('addRowBtn');
+        if (addRowBtn) {
+            addRowBtn.addEventListener('click', showAddForm);
+        }
+        
+        // Empty State Button
+        const emptyBtn = document.getElementById('emptyStateAddBtn');
+        if (emptyBtn) {
+            emptyBtn.addEventListener('click', showAddForm);
+        }
+        
+        // Cancel Button
+        const cancelBtn = document.getElementById('cancelNewContainer');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', hideAddForm);
+        }
+    });
 </script>
+
+<style>
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+</style>
+
 {% endblock %}

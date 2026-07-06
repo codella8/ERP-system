@@ -1,10 +1,17 @@
+<!-- reports/templates/reports/dashboard.html -->
 {% extends 'inout/report_base.html' %}
 {% load static %}
 {% load humanize %}
 
 {% block title %}Almuqbil | In-Out Report{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'reports/css/reports.css' %}">
+{% endblock %}
+
 {% block content %}
 
+<!-- ===== HEADER ===== -->
 <div class="rpt-header">
     <div class="rpt-header-left">
         <h1><i class="fas fa-chart-pie"></i> In-Out Report</h1>
@@ -85,21 +92,14 @@
     </div>
 </div>
 
-
 <!-- ===== CHART ===== -->
 <div class="rpt-chart">
     <div class="title">
         <i class="fas fa-chart-bar"></i> Sales vs Expenses
         <span class="date-range">{{ start_date|date:"d-M-y" }} — {{ end_date|date:"d-M-y" }}</span>
     </div>
-    <div class="wrapper" style="position:relative; min-height:300px;">
+    <div class="wrapper">
         <canvas id="salesExpensesChart"></canvas>
-        {% if not chart_labels or chart_labels|length == 0 or chart_labels|join:"" == "No Data" %}
-        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; color:#aaa; font-size:16px; pointer-events:none; font-family:'Inter',sans-serif;">
-            <i class="fas fa-chart-simple" style="font-size:48px; display:block; margin-bottom:12px; color:#d0d7d4;"></i>
-            <span>No data available for this period</span>
-        </div>
-        {% endif %}
     </div>
 </div>
 
@@ -187,8 +187,8 @@
                         {
                             label: 'Sales (AED)',
                             data: {{ chart_sales|safe }},
-                            backgroundColor: 'rgba(26, 61, 47, 0.75)',
-                            borderColor: 'rgba(26, 61, 47, 1)',
+                            backgroundColor: 'rgba(26, 35, 126, 0.75)',
+                            borderColor: 'rgba(26, 35, 126, 1)',
                             borderWidth: 1,
                             borderRadius: 4,
                             barPercentage: 0.6,

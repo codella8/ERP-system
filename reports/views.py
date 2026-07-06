@@ -1,6 +1,7 @@
 # reports/views.py
 import csv
 import json
+from decimal import Decimal
 
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse

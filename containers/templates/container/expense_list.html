@@ -12,7 +12,7 @@
         <div class="excel-menu">
             <a href="{% url 'containers:list' %}" class="menu-item"><i class="fas fa-ship"></i> Containers</a>
             <a href="{% url 'containers:inventory_list' %}" class="menu-item"><i class="fas fa-chart-bar"></i> Inventory</a>
-            <a href="#" class="menu-item"><i class="fas fa-credit-card"></i> Payment</a>
+            <a href="{% url 'containers:payment' %}" class="menu-item"><i class="fas fa-credit-card"></i> Payment</a>
             <a href="{% url 'containers:expense_list' %}" class="menu-item active"><i class="fas fa-receipt"></i> Expenses</a>
         </div>
         
@@ -39,7 +39,6 @@
                 <i class="fas fa-sync-alt"></i> Refresh
             </button>
             <div class="search-wrapper">
-                <i class="fas fa-search"></i>
                 <input type="text" id="searchInput" placeholder="Search expenses..." value="{{ search|default:'' }}">
             </div>
             <span style="flex:1"></span>
@@ -212,7 +211,6 @@
     let editingRow = null;
     let originalValues = {};
 
-    // CSRF Token
     function getCSRFToken() {
         let cookieValue = null;
         if (document.cookie && document.cookie !== '') {
@@ -230,10 +228,28 @@
     const csrftoken = getCSRFToken();
 
     // ============================================================
-    // مدیریت دسته‌بندی (Category) در همان صفحه
+    // SEARCH
     // ============================================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const params = new URLSearchParams();
+                    const searchValue = this.value.trim();
+                    if (searchValue) {
+                        params.append('search', searchValue);
+                    }
+                    window.location.href = '{% url "containers:expense_list" %}' + (params.toString() ? '?' + params.toString() : '');
+                }
+            });
+        }
+    });
 
-    // Toggle Category Form
+    // ============================================================
+    // CATEGORY
+    // ============================================================
     document.getElementById('addCategoryBtn').addEventListener('click', () => {
         const form = document.getElementById('categoryFormRow');
         form.style.display = form.style.display === 'none' ? 'flex' : 'none';
@@ -246,7 +262,6 @@
         document.getElementById('new_category_description').value = '';
     });
 
-    // Save New Category (AJAX)
     document.getElementById('saveCategory').addEventListener('click', function() {
         const name = document.getElementById('new_category_name').value.trim();
         if (!name) {
@@ -274,20 +289,14 @@
         .then(data => {
             if (data.success) {
                 alert('✅ Category created successfully!');
-                // اضافه کردن به select ها
                 const newOption = `<option value="${data.id}">${data.name}</option>`;
-                
-                // اضافه به همه select های category در صفحه
                 document.querySelectorAll('select[id="new_category"], select[data-field="category"]').forEach(select => {
                     select.insertAdjacentHTML('beforeend', newOption);
                     select.value = data.id;
                 });
-                
-                // مخفی کردن فرم و ریست
                 document.getElementById('categoryFormRow').style.display = 'none';
                 document.getElementById('new_category_name').value = '';
                 document.getElementById('new_category_description').value = '';
-                
             } else {
                 alert('❌ ' + data.error);
             }
@@ -302,20 +311,18 @@
     });
 
     // ============================================================
-    // مدیریت Expense
+    // EXPENSE
     // ============================================================
-
-    // Toggle Add Form
     document.getElementById('addExpenseBtn').addEventListener('click', () => {
         const form = document.getElementById('addFormRow');
         form.style.display = form.style.display === 'none' ? 'flex' : 'none';
         if (form.style.display === 'flex') document.getElementById('new_description').focus();
     });
+
     document.getElementById('cancelExpense').addEventListener('click', () => {
         document.getElementById('addFormRow').style.display = 'none';
     });
 
-    // Save New Expense
     document.getElementById('saveExpense').addEventListener('click', function() {
         const data = {
             date: document.getElementById('new_date').value,
@@ -339,7 +346,9 @@
         });
     });
 
-    // Edit Row
+    // ============================================================
+    // INLINE EDIT
+    // ============================================================
     window.editRow = function(btn) {
         const row = btn.closest('tr');
         const rowId = row.dataset.id;
@@ -359,12 +368,11 @@
         editingRow = rowId;
     };
 
-    // Save Row
     window.saveRow = function(btn) {
         const row = btn.closest('tr');
         const rowId = row.dataset.id;
         const changes = {};
-        row.querySelectorAll('.editable-cell').forEach(cell => {
+        row.querySelectorAll('.editable-cell.editing').forEach(cell => {
             const field = cell.dataset.field;
             const newValue = cell.querySelector('.edit-input').value;
             changes[field] = newValue;
@@ -403,7 +411,6 @@
         editingRow = null;
     }
 
-    // Delete
     window.deleteExpense = function(id) {
         if (confirm('Delete this expense?')) {
             fetch(`/containers/api/expense/${id}/delete/`, {
@@ -427,15 +434,6 @@
             this.classList.add('editing');
             this.querySelector('.edit-input')?.focus();
         });
-    });
-
-    // Search
-    document.getElementById('searchInput')?.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            const params = new URLSearchParams();
-            if (this.value) params.append('search', this.value);
-            window.location.href = '{% url "containers:expense_list" %}?' + params.toString();
-        }
     });
 </script>
 {% endblock %}

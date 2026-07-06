@@ -7,8 +7,10 @@ urlpatterns = [
     path('', views.container_list, name='list'),
     path('<uuid:pk>/', views.container_detail, name='detail'),
     path('inventory/', views.inventory_list, name='inventory_list'),
-    path('payments/', views.payment_list, name='payment_list'),
-    
+    path('payments/', views.payment_list, name='payment'),
+    path('api/payment/<uuid:pk>/update/', views.payment_update_ajax, name='payment_update_ajax'),
+    path('api/payment/<uuid:pk>/delete/', views.payment_delete_ajax, name='payment_delete_ajax'),
+    path('api/payment/create/', views.payment_create_ajax, name='payment_create_ajax'),
     # API
     # containers/urls.py
     path('api/container/create/', views.container_create_ajax, name='container_create_ajax'),

@@ -178,6 +178,8 @@ def container_detail(request, pk):
     return render(request, 'container/container_detail.html', context)
 
 
+# containers/views.py
+
 @login_required
 def inventory_list(request):
     """صفحه لیست موجودی"""
@@ -204,7 +206,7 @@ def inventory_list(request):
     total_value = Decimal('0')
     
     for item in items:
-        # ✅ محاسبه موجودی فعلی (بدون مقداردهی به property)
+        # محاسبه موجودی فعلی
         current_stock = item.in_stock_qty - item.total_sold_qty
         
         # ارزش کل
@@ -214,25 +216,25 @@ def inventory_list(request):
         total_sold += item.total_sold_qty
         total_value += item_value
         
-        # ذخیره در دیکشنری یا object (بدون تغییر property)
         item_data.append({
             'id': item.id,
             'product_name': item.product_name,
             'code': item.code,
+            'container': item.container,
             'container_no': item.container.container_no if item.container else '',
             'in_stock_qty': item.in_stock_qty,
             'total_sold_qty': item.total_sold_qty,
-            'current_stock': current_stock,        # ✅ اضافه شد
+            'current_stock': current_stock,
             'unit_price': item.unit_price,
             'total_value': item_value,
         })
     
-    # لیست کانتینرها برای فیلتر
+    # ✅ لیست کانتینرها برای فیلتر (این خط را اضافه کن)
     containers = Container.objects.all().order_by('container_no')
     
     context = {
-        'items': item_data, 
-        'containers': containers,
+        'items': item_data,
+        'containers': containers,  # ✅ این خط مهم است
         'search': search,
         'container_filter': container_id,
         'stats': {
@@ -313,31 +315,28 @@ def container_get_ajax(request, pk):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
+# containers/views.py
 @require_POST
 def container_update_ajax(request, pk):
-    """به‌روزرسانی کانتینر"""
     try:
         container = get_object_or_404(Container, pk=pk)
+        data = json.loads(request.body)
         
-        container_no = request.POST.get('container_no', '').strip().upper()
-        if not container_no:
-            return JsonResponse({'success': False, 'error': 'Container number is required'})
+        if 'container_no' in data:
+            container.container_no = data['container_no']
+        if 'supplier' in data:
+            container.supplier = data['supplier']
+        if 'code' in data:
+            container.code = data['code']
+        if 'arrival_date' in data:
+            container.arrival_date = data['arrival_date']
         
-        # بررسی یکتا بودن (به جز خودش)
-        if Container.objects.filter(container_no=container_no).exclude(pk=pk).exists():
-            return JsonResponse({'success': False, 'error': 'Container number already exists'})
-        
-        container.container_no = container_no
-        container.supplier = request.POST.get('supplier', '').strip()
-        container.code = request.POST.get('code', '').strip().upper() or None
-        container.arrival_date = request.POST.get('arrival_date', '').strip() or None
         container.save()
         
         return JsonResponse({
             'success': True,
             'message': 'Container updated successfully'
         })
-        
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
@@ -502,29 +501,87 @@ import json
 from .models import Container, Inventory_List, Payment
 from employee.models import Person
 
-
-# ============================================
-# Payment Pages
-# ============================================
-
 @login_required
 def payment_list(request):
     """صفحه لیست پرداخت‌ها (مثل اکسل)"""
-    from .models import PaymentCategory
+    # ❌ این خط را حذف کن
+    # from .models import PaymentCategory
     
-    payments = Payment.objects.select_related('paid_by', 'received_by', 'category', 'container').all().order_by('-date')
-    categories = PaymentCategory.objects.filter(is_active=True)
-    people = Person.objects.filter(is_active=True)
-    containers = Container.objects.all()
+    payments = Payment.objects.select_related('container').all().order_by('-date')
+    
+    # فیلترها
+    search = request.GET.get('search', '').strip()
+    if search:
+        payments = payments.filter(
+            Q(description__icontains=search) |
+            Q(paid_by__icontains=search) |
+            Q(received_by__icontains=search)
+        )
+    
+    date_from = request.GET.get('date_from')
+    if date_from:
+        payments = payments.filter(date__gte=date_from)
+    
+    date_to = request.GET.get('date_to')
+    if date_to:
+        payments = payments.filter(date__lte=date_to)
+    
+    # محاسبه مجموع
+    total_cash_in = payments.aggregate(total=Sum('cash_in'))['total'] or Decimal('0')
+    total_cash_out = payments.aggregate(total=Sum('cash_out'))['total'] or Decimal('0')
+    net_balance = total_cash_in - total_cash_out
+    
+    # دریافت لیست کانتینرها برای فیلتر
+    containers = Container.objects.all().order_by('container_no')
     
     context = {
         'payments': payments,
-        'categories': categories,
-        'people': people,
+        'total_cash_in': total_cash_in,
+        'total_cash_out': total_cash_out,
+        'net_balance': net_balance,
         'containers': containers,
+        'search': search,
+        'date_from': date_from,
+        'date_to': date_to,
     }
-    return render(request, 'containers/payment_list.html', context)
+    return render(request, 'container/payment.html', context)
 
+# containers/views.py - اضافه کن
+
+@login_required
+@require_POST
+def payment_create_ajax(request):
+    """ایجاد Payment جدید با AJAX"""
+    try:
+        payment = Payment.objects.create(
+            date=request.POST.get('date', ''),
+            description=request.POST.get('description', ''),
+            rate=Decimal(request.POST.get('rate', 0)),
+            nzd=Decimal(request.POST.get('nzd', 0)),
+            paid_by=request.POST.get('paid_by', ''),
+            received_by=request.POST.get('received_by', ''),
+            cash_in=Decimal(request.POST.get('cash_in', 0)),
+            cash_out=Decimal(request.POST.get('cash_out', 0)),
+            container_id=request.POST.get('container') or None,
+        )
+        
+        # اگر Payment مربوط به کانتینر است، total_expenses را به‌روز کن
+        if payment.container and payment.cash_out:
+            container = payment.container
+            container.total_expenses = (container.total_expenses or 0) + payment.cash_out
+            container.save(update_fields=['total_expenses', 'updated_at'])
+        
+        return JsonResponse({
+            'success': True,
+            'id': str(payment.id),
+            'date': payment.date,
+            'description': payment.description,
+            'cash_in': float(payment.cash_in),
+            'cash_out': float(payment.cash_out),
+            'message': 'Payment created successfully'
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
 
 @login_required
 @require_POST
@@ -565,6 +622,39 @@ def payments_save_ajax(request):
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
+# containers/views.py - اضافه کن (بعد از payment_list)
+
+@login_required
+@require_POST
+def payment_update_ajax(request, pk):
+    """ویرایش Payment با AJAX (Inline Edit)"""
+    try:
+        payment = get_object_or_404(Payment, pk=pk)
+        data = json.loads(request.body)
+        
+        # فیلدهای قابل ویرایش
+        editable_fields = ['date', 'description', 'rate', 'nzd', 'paid_by', 'received_by', 'cash_in', 'cash_out']
+        
+        for field, value in data.items():
+            if field in editable_fields:
+                if field in ['rate', 'nzd', 'cash_in', 'cash_out']:
+                    value = Decimal(str(value)) if value else Decimal('0')
+                setattr(payment, field, value)
+        
+        payment.save()
+        
+        # به‌روزرسانی container.total_expenses اگر payment مربوط به کانتینر باشد
+        if payment.container and payment.cash_out:
+            container = payment.container
+            container.total_expenses = (container.total_expenses or 0) + payment.cash_out
+            container.save(update_fields=['total_expenses', 'updated_at'])
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Payment updated successfully'
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
 
 @login_required
 @require_POST
@@ -643,6 +733,7 @@ from decimal import Decimal
 from .models import Expense, ExpenseCategory, Container
 from employee.models import Person
 
+# containers/views.py
 
 @login_required
 def expense_list(request):
@@ -652,7 +743,7 @@ def expense_list(request):
         'category', 'paid_by', 'received_by', 'container'
     ).all().order_by('-date')
     
-    # فیلترها
+    # ===== فیلتر جستجو =====
     search = request.GET.get('search', '').strip()
     if search:
         expenses = expenses.filter(
@@ -662,14 +753,15 @@ def expense_list(request):
             Q(received_by__name__icontains=search)
         )
     
+    # فیلتر بر اساس دسته‌بندی
     category_filter = request.GET.get('category')
     if category_filter:
         expenses = expenses.filter(category_id=category_filter)
     
+    # فیلتر بر اساس تاریخ
     date_from = request.GET.get('date_from')
     if date_from:
         expenses = expenses.filter(date__gte=date_from)
-    
     date_to = request.GET.get('date_to')
     if date_to:
         expenses = expenses.filter(date__lte=date_to)
@@ -681,9 +773,9 @@ def expense_list(request):
         'expenses': expenses,
         'total_expenses': total_expenses,
         'categories': ExpenseCategory.objects.filter(is_active=True),
-        'people': Person.objects.all(), 
+        'people': Person.objects.all(),
         'containers': Container.objects.all(),
-        'search': search,
+        'search': search,  # ✅ این خط مهم است
         'category_filter': category_filter,
         'date_from': date_from,
         'date_to': date_to,
